@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>CRM Luméra</title>
+<link rel="icon" href="/assets/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#151C2C; --abyss:#0E1320; --panel:#1B2336; --panel-2:#222C42;
+  --ivory:#F4F0E9; --muted:#9AA1B2; --line:rgba(229,183,95,.16);
+  --gold:#E5B75F; --gold-deep:#A98343;
+  --novo:#8FA3C7; --conversando:#6CC4D8; --agendou:#E5B75F; --compareceu:#B49CE8; --fechou:#5FD39A; --perdido:#D2737A;
+  --display:"Cormorant Garamond", Georgia, serif; --body:"Jost", "Segoe UI", sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:var(--body);background:var(--abyss);color:var(--ivory);font-size:14px;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--gold)}
+.hidden{display:none!important}
+.mono{font-variant-numeric:tabular-nums}
+
+/* Login */
+.login{min-height:100%;display:grid;place-items:center;padding:24px}
+.login form{width:min(380px,100%);background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:36px 30px;display:grid;gap:16px;text-align:center}
+.login img{width:120px;margin:0 auto 6px}
+.login h1{font-family:var(--display);font-weight:500;font-size:1.9rem}
+.login p{color:var(--muted)}
+.field{display:grid;gap:6px;text-align:left}
+.field label{font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+input,select,textarea{width:100%;background:var(--abyss);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:11px 12px;outline:none;transition:border-color .2s}
+input:focus,select:focus,textarea:focus{border-color:var(--gold)}
+textarea{min-height:90px;resize:vertical}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid rgba(255,255,255,.14);background:transparent;border-radius:10px;padding:10px 14px;cursor:pointer;transition:all .2s;white-space:nowrap;text-decoration:none;color:var(--ivory)}
+.btn:hover{border-color:var(--gold);color:var(--gold)}
+.btn.primary{background:var(--gold);border-color:var(--gold);color:var(--abyss);font-weight:600}
+.btn.primary:hover{filter:brightness(1.08);color:var(--abyss)}
+.btn.wa{background:#25D366;border-color:#25D366;color:#06210f;font-weight:600}
+.err{color:#F2A3A8;min-height:1.2em;font-size:.9rem}
+
+/* App */
+.app{display:flex;flex-direction:column;min-height:100%}
+.top{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:14px max(18px,env(safe-area-inset-right,0px)) 14px max(18px,env(safe-area-inset-left,0px));background:rgba(14,19,32,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.top img{width:84px}
+.top h1{font-family:var(--display);font-weight:500;font-size:1.4rem;margin-right:auto}
+.tabs{display:flex;gap:4px;background:var(--panel);padding:4px;border-radius:12px}
+.tabs button{border:0;background:transparent;padding:8px 14px;border-radius:9px;cursor:pointer;color:var(--muted)}
+.tabs button.on{background:var(--panel-2);color:var(--ivory)}
+.main{padding:20px max(18px,env(safe-area-inset-right,0px)) 40px max(18px,env(safe-area-inset-left,0px));display:grid;gap:18px}
+.banner{border:1px solid rgba(229,183,95,.4);background:rgba(229,183,95,.08);border-radius:12px;padding:12px 14px;color:var(--ivory)}
+.banner b{color:var(--gold)}
+
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.kpi small{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:.74rem;letter-spacing:.1em;text-transform:uppercase}
+.kpi small i{width:8px;height:8px;border-radius:50%}
+.kpi b{display:block;font-size:1.7rem;font-weight:500;margin-top:4px}
+.kpi span{color:var(--muted);font-size:.8rem}
+
+.filters{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.filters input{max-width:260px}
+.filters select{max-width:220px}
+.filters .grow{flex:1}
+
+.board{display:grid;grid-template-columns:repeat(6,minmax(230px,1fr));gap:12px;overflow-x:auto;padding-bottom:8px}
+.col{background:var(--panel);border:1px solid var(--line);border-radius:16px;display:flex;flex-direction:column;min-height:300px;max-height:calc(100vh - 290px)}
+.col.drop{border-color:var(--gold)}
+.col header{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line);font-weight:500}
+.col header i{width:9px;height:9px;border-radius:50%}
+.col header span{margin-left:auto;color:var(--muted)}
+.col .list{padding:10px;display:grid;gap:8px;overflow-y:auto;align-content:start}
+.lead{background:var(--panel-2);border:1px solid transparent;border-left:3px solid var(--c,#888);border-radius:10px;padding:10px 12px;cursor:pointer;display:grid;gap:4px;transition:border-color .2s, transform .2s}
+.lead:hover{border-color:rgba(229,183,95,.35);transform:translateY(-1px)}
+.lead .n{font-weight:500}
+.lead .m{color:var(--muted);font-size:.8rem;display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-block;padding:1px 8px;border-radius:999px;background:rgba(255,255,255,.07);font-size:.74rem;color:var(--ivory)}
+.chip.g{background:rgba(229,183,95,.15);color:var(--gold)}
+.empty{color:var(--muted);font-size:.85rem;text-align:center;padding:20px 8px}
+
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.tablewrap{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:16px}
+th,td{padding:11px 14px;text-align:left;border-bottom:1px solid rgba(255,255,255,.06);white-space:nowrap}
+th{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:500}
+td.num,th.num{text-align:right}
+tr:last-child td{border-bottom:0}
+
+.cardbox{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px;display:grid;gap:12px}
+.cardbox h2{font-family:var(--display);font-weight:500;font-size:1.5rem}
+.cardbox p{color:var(--muted)}
+code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.82rem}
+pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:12px;overflow-x:auto;white-space:pre}
+.copyrow{display:flex;gap:8px}
+.copyrow input{font-family:ui-monospace,monospace;font-size:.82rem}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px}
+
+/* Gaveta */
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:40;opacity:0;pointer-events:none;transition:opacity .3s}
+.scrim.on{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:0;right:0;bottom:0;z-index:41;width:min(460px,100%);background:var(--panel);border-left:1px solid var(--line);transform:translateX(100%);transition:transform .35s cubic-bezier(.2,.7,.1,1);display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px)}
+.drawer.on{transform:none}
+.drawer header{display:flex;align-items:center;gap:10px;padding:16px 18px;border-bottom:1px solid var(--line)}
+.drawer header h2{font-family:var(--display);font-weight:500;font-size:1.5rem;margin-right:auto}
+.drawer .body{padding:18px;overflow-y:auto;display:grid;gap:14px;align-content:start;flex:1}
+.drawer footer{padding:14px 18px calc(14px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap}
+.stagepick{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.stagepick button{border:1px solid rgba(255,255,255,.12);background:transparent;border-radius:9px;padding:8px 6px;cursor:pointer;font-size:.84rem}
+.stagepick button.on{background:var(--c);border-color:var(--c);color:var(--abyss);font-weight:600}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.info{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:.84rem}
+.info dt{color:var(--muted)}
+.info dd{word-break:break-all}
+.hist{display:grid;gap:8px;font-size:.82rem}
+.hist div{border-left:2px solid var(--line);padding-left:10px;color:var(--muted)}
+.hist b{color:var(--ivory);font-weight:500}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(30px);opacity:0;background:var(--ivory);color:var(--abyss);padding:10px 16px;border-radius:10px;z-index:60;transition:all .3s;font-weight:500}
+.toast.on{opacity:1;transform:translateX(-50%)}
+@media (max-width:700px){.top h1{display:none}.filters input,.filters select{max-width:none;flex:1 1 140px}.board{grid-template-columns:repeat(6,82vw)}}
+</style>
+</head>
+<body>
+
+<section class="login" id="login">
+  <form id="loginForm">
+    <img src="/assets/logo.png" alt="Luméra">
+    <h1>CRM Luméra</h1>
+    <p>Digite a chave de acesso do CRM.</p>
+    <div class="field"><label for="key">Chave</label><input id="key" type="password" autocomplete="current-password" required></div>
+    <button class="btn primary" type="submit">Entrar</button>
+    <div class="err" id="loginErr"></div>
+  </form>
+</section>
+
+<div class="app hidden" id="app">
+  <div class="top">
+    <img src="/assets/logo.png" alt="Luméra">
+    <h1>CRM</h1>
+    <div class="tabs" role="tablist">
+      <button class="on" data-tab="funil">Funil</button>
+      <button data-tab="campanhas">Campanhas</button>
+      <button data-tab="integracao">Integração</button>
+    </div>
+    <button class="btn primary" id="newLead">+ Novo lead</button>
+    <button class="btn" id="logout" title="Sair">Sair</button>
+  </div>
+
+  <div class="main">
+    <div id="banners"></div>
+    <div class="kpis" id="kpis"></div>
+
+    <div id="tab-funil">
+      <div class="filters" style="margin-bottom:12px">
+        <input id="q" type="search" placeholder="Buscar nome, telefone ou código">
+        <select id="fCamp"><option value="">Todas as campanhas</option></select>
+        <select id="fTema"><option value="">Todos os assuntos</option></select>
+        <select id="fPer"><option value="0">Todo o período</option><option value="7">Últimos 7 dias</option><option value="30" selected>Últimos 30 dias</option><option value="90">Últimos 90 dias</option></select>
+        <span class="grow"></span>
+        <span class="mono" id="updated" style="color:var(--muted)"></span>
+      </div>
+      <div class="board" id="board"></div>
+    </div>
+
+    <div id="tab-campanhas" class="hidden">
+      <div class="filters" style="margin-bottom:12px">
+        <select id="groupBy"><option value="utm_campaign">Agrupar por campanha</option><option value="utm_content">Agrupar por anúncio (utm_content)</option><option value="utm_term">Agrupar por conjunto (utm_term)</option><option value="tema">Agrupar por assunto</option><option value="origin">Agrupar por origem</option></select>
+      </div>
+      <div class="tablewrap"><table><thead><tr><th>Grupo</th><th class="num">Leads</th><th class="num">Conversando</th><th class="num">Agendou</th><th class="num">Compareceu</th><th class="num">Fechou</th><th class="num">% fechou</th><th class="num">Valor fechado</th></tr></thead><tbody id="campBody"></tbody></table></div>
+    </div>
+
+    <div id="tab-integracao" class="hidden grid2">
+      <div class="cardbox">
+        <h2>Gerador de links com UTM</h2>
+        <p>Use estes links nos anúncios e no Instagram. Cada clique no site guarda a origem e aparece no funil.</p>
+        <div class="field"><label for="uCamp">Campanha (utm_campaign)</label><input id="uCamp" value="lumera-whatsapp"></div>
+        <div class="field"><label for="uCont">Anúncio (utm_content)</label><input id="uCont" value="video-implante"></div>
+        <div class="row2">
+          <div class="field"><label for="uSrc">Origem</label><select id="uSrc"><option value="facebook|paid">Meta Ads</option><option value="instagram|bio">Instagram bio</option><option value="google|cpc">Google Ads</option><option value="whatsapp|status">WhatsApp status</option></select></div>
+          <div class="field"><label for="uTema">Assunto</label><select id="uTema"><option value="">Geral</option><option value="implante">Implante</option><option value="clareamento">Clareamento</option><option value="prevencao">Prevenção</option></select></div>
+        </div>
+        <div class="copyrow"><input id="uOut" readonly><button class="btn" data-copy="uOut">Copiar</button></div>
+        <p style="margin-top:6px">Parâmetros dinâmicos para colar em <b>Parâmetros de URL</b> no anúncio do Meta (preenche sozinho com os nomes):</p>
+        <div class="copyrow"><input id="metaParams" readonly value="utm_source=facebook&utm_medium=paid&utm_campaign={{campaign.name}}&utm_term={{adset.name}}&utm_content={{ad.name}}"><button class="btn" data-copy="metaParams">Copiar</button></div>
+      </div>
+      <div class="cardbox">
+        <h2>Webhook de entrada</h2>
+        <p>Envie leads de qualquer ferramenta (Zapier, Make, n8n, formulário do Meta, ferramenta de WhatsApp). Se o código <code>(cód. L…)</code> ou o telefone já existir, o lead é atualizado.</p>
+        <div class="copyrow"><input id="hookUrl" readonly><button class="btn" data-copy="hookUrl">Copiar</button></div>
+        <pre id="hookEx"></pre>
+        <p>Etapas aceitas em <code>stage</code>: novo, conversando, agendou, compareceu, fechou, perdido. Ao mover para <b>conversando</b>, <b>agendou</b> ou <b>fechou</b>, o CRM envia Lead, Schedule ou Purchase para o Pixel pela API de Conversões.</p>
+      </div>
+      <div class="cardbox">
+        <h2>Status</h2>
+        <dl class="info" id="status"></dl>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-label="Lead">
+  <header><h2 id="dTitle">Lead</h2><button class="btn" id="dClose">Fechar</button></header>
+  <div class="body">
+    <div class="stagepick" id="dStages"></div>
+    <div class="row2">
+      <div class="field"><label for="dName">Nome</label><input id="dName"></div>
+      <div class="field"><label for="dPhone">WhatsApp</label><input id="dPhone" inputmode="tel" placeholder="(21) 9…"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label for="dTema">Assunto</label><select id="dTema"><option>AVALIAÇÃO</option><option>IMPLANTE</option><option>CLAREAMENTO</option><option>PREVENÇÃO</option><option>DÚVIDA</option></select></div>
+      <div class="field"><label for="dValue">Valor fechado (R$)</label><input id="dValue" inputmode="decimal" placeholder="0,00"></div>
+    </div>
+    <div class="row2" id="dUtmEdit">
+      <div class="field"><label for="dCamp">Campanha</label><input id="dCamp" list="campList"></div>
+      <div class="field"><label for="dCont">Anúncio</label><input id="dCont" list="contList"></div>
+    </div>
+    <datalist id="campList"></datalist><datalist id="contList"></datalist>
+    <div class="field"><label for="dNotes">Anotações</label><textarea id="dNotes"></textarea></div>
+    <dl class="info" id="dInfo"></dl>
+    <div><div class="field"><label>Histórico</label></div><div class="hist" id="dHist"></div></div>
+  </div>
+  <footer>
+    <button class="btn primary" id="dSave">Salvar</button>
+    <a class="btn wa" id="dWa" target="_blank" rel="noopener">Abrir WhatsApp</a>
+  </footer>
+</aside>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  var STAGES=[["novo","Novo"],["conversando","Conversando"],["agendou","Agendou"],["compareceu","Compareceu"],["fechou","Fechou"],["perdido","Perdido"]];
+  var LABEL=Object.fromEntries(STAGES);
+  var $=function(s){return document.querySelector(s)};
+  var key="", data={leads:[]}, current=null, pendingStage=null;
+  try{key=localStorage.getItem("lumera_crm_key")||""}catch(e){}
+
+  function toast(t){var el=$("#toast");el.textContent=t;el.classList.add("on");clearTimeout(toast.t);toast.t=setTimeout(function(){el.classList.remove("on")},2200)}
+  function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
+  function money(v){return (Number(v)||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}
+  function ago(iso){var s=(Date.now()-Date.parse(iso))/1000;if(s<3600)return Math.max(1,Math.round(s/60))+" min";if(s<86400)return Math.round(s/3600)+" h";return Math.round(s/86400)+" d"}
+  function fmtPhone(p){p=String(p||"");var m=p.match(/^55(\d{2})(\d{4,5})(\d{4})$/);return m?"("+m[1]+") "+m[2]+"-"+m[3]:p}
+
+  async function api(path,opt){
+    opt=opt||{};opt.headers=Object.assign({"X-CRM-Key":key,"Content-Type":"application/json"},opt.headers||{});
+    var r=await fetch(path,opt);var j=await r.json().catch(function(){return{}});
+    if(!r.ok){var e=new Error(j.error||("Erro "+r.status));e.status=r.status;throw e}
+    return j;
+  }
+
+  async function load(silent){
+    try{
+      data=await api("/api/leads");
+      $("#login").classList.add("hidden");$("#app").classList.remove("hidden");
+      render();$("#updated").textContent="Atualizado "+new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+    }catch(e){
+      if(e.status===401||e.status===503){$("#app").classList.add("hidden");$("#login").classList.remove("hidden");$("#loginErr").textContent=e.status===503?"A chave do CRM ainda não foi configurada na Vercel (CRM_KEY).":(key?"Chave incorreta.":"")}
+      else if(!silent)toast(e.message);
+    }
+  }
+
+  $("#loginForm").addEventListener("submit",function(ev){ev.preventDefault();key=$("#key").value.trim();try{localStorage.setItem("lumera_crm_key",key)}catch(e){}load()});
+  $("#logout").addEventListener("click",function(){key="";try{localStorage.removeItem("lumera_crm_key")}catch(e){}location.reload()});
+
+  document.querySelectorAll(".tabs button").forEach(function(b){b.addEventListener("click",function(){
+    document.querySelectorAll(".tabs button").forEach(function(x){x.classList.toggle("on",x===b)});
+    ["funil","campanhas","integracao"].forEach(function(t){$("#tab-"+t).classList.toggle("hidden",t!==b.dataset.tab)});
+  })});
+
+  function filtered(){
+    var q=$("#q").value.trim().toLowerCase(), c=$("#fCamp").value, t=$("#fTema").value, d=Number($("#fPer").value);
+    return data.leads.filter(function(l){
+      if(d&&Date.now()-Date.parse(l.createdAt)>d*864e5)return false;
+      if(c&&(l.utm_campaign||"(sem campanha)")!==c)return false;
+      if(t&&l.tema!==t)return false;
+      if(q&&![l.name,l.phone,l.id,l.notes].join(" ").toLowerCase().includes(q))return false;
+      return true;
+    });
+  }
+
+  function fillSelect(sel,vals){var cur=sel.value;var first=sel.options[0].outerHTML;sel.innerHTML=first+vals.map(function(v){return "<option>"+esc(v)+"</option>"}).join("");sel.value=cur}
+
+  function render(){
+    var camps=[...new Set(data.leads.map(function(l){return l.utm_campaign||"(sem campanha)"}))].sort();
+    fillSelect($("#fCamp"),camps);
+    fillSelect($("#fTema"),[...new Set(data.leads.map(function(l){return l.tema}).filter(Boolean))].sort());
+    $("#campList").innerHTML=camps.filter(function(c){return c[0]!=="("}).map(function(c){return "<option value=\""+esc(c)+"\">"}).join("");
+    $("#contList").innerHTML=[...new Set(data.leads.map(function(l){return l.utm_content}).filter(Boolean))].map(function(c){return "<option value=\""+esc(c)+"\">"}).join("");
+
+    var b=[];
+    if(data.storage==="memory")b.push("<div class='banner'><b>Banco de dados não conectado.</b> Os leads ficam só na memória e somem. Conecte o Upstash Redis no projeto da Vercel (Storage).</div>");
+    if(!data.capi)b.push("<div class='banner'><b>API de Conversões desligada.</b> Adicione <code>META_CAPI_TOKEN</code> na Vercel para enviar Agendou e Fechou ao Pixel.</div>");
+    $("#banners").innerHTML=b.join("");
+
+    var L=filtered(), by={};STAGES.forEach(function(s){by[s[0]]=[]});L.forEach(function(l){(by[l.stage]||by.novo).push(l)});
+    var fech=by.fechou.reduce(function(a,l){return a+(Number(l.value)||0)},0);
+    var k=STAGES.map(function(s){return "<div class='kpi'><small><i style='background:var(--"+s[0]+")'></i>"+s[1]+"</small><b class='mono'>"+by[s[0]].length+"</b></div>"}).join("");
+    var conv=L.length?Math.round(by.fechou.length/L.length*100):0;
+    k+="<div class='kpi'><small>Valor fechado</small><b class='mono'>"+money(fech)+"</b><span>"+conv+"% dos leads fecharam</span></div>";
+    $("#kpis").innerHTML=k;
+
+    $("#board").innerHTML=STAGES.map(function(s){
+      var items=by[s[0]];
+      return "<div class='col' data-stage='"+s[0]+"'><header><i style='background:var(--"+s[0]+")'></i>"+s[1]+"<span class='mono'>"+items.length+"</span></header><div class='list'>"+
+        (items.length?items.map(function(l){return "<div class='lead' draggable='true' data-id='"+esc(l.id)+"' style='--c:var(--"+s[0]+")'><div class='n'>"+esc(l.name||fmtPhone(l.phone)||l.id)+"</div><div class='m'>"+(l.tema?"<span class='chip g'>"+esc(l.tema)+"</span>":"")+(l.utm_campaign?"<span class='chip'>"+esc(l.utm_campaign)+"</span>":"<span class='chip'>"+esc(l.origin||"")+"</span>")+"<span class='mono'>"+ago(l.createdAt)+"</span>"+(l.value?"<span class='mono'>"+money(l.value)+"</span>":"")+"</div></div>"}).join(""):"<div class='empty'>Nenhum lead</div>")+
+        "</div></div>";
+    }).join("");
+    renderCamp();renderIntegration();
+  }
+
+  function renderCamp(){
+    var g=$("#groupBy").value, rows={};
+    data.leads.forEach(function(l){var k=l[g]||"(vazio)";var r=rows[k]||(rows[k]={n:0,conversando:0,agendou:0,compareceu:0,fechou:0,v:0});r.n++;
+      var reach={conversando:["conversando","agendou","compareceu","fechou"],agendou:["agendou","compareceu","fechou"],compareceu:["compareceu","fechou"],fechou:["fechou"]};
+      Object.keys(reach).forEach(function(s){if(reach[s].includes(l.stage))r[s]++});if(l.stage==="fechou")r.v+=Number(l.value)||0});
+    var keys=Object.keys(rows).sort(function(a,b){return rows[b].n-rows[a].n});
+    $("#campBody").innerHTML=keys.length?keys.map(function(k){var r=rows[k];return "<tr><td>"+esc(k)+"</td><td class='num'>"+r.n+"</td><td class='num'>"+r.conversando+"</td><td class='num'>"+r.agendou+"</td><td class='num'>"+r.compareceu+"</td><td class='num'>"+r.fechou+"</td><td class='num'>"+(r.n?Math.round(r.fechou/r.n*100):0)+"%</td><td class='num'>"+money(r.v)+"</td></tr>"}).join(""):"<tr><td colspan='8' class='empty'>Os leads aparecem aqui assim que chegarem.</td></tr>";
+  }
+  $("#groupBy").addEventListener("change",renderCamp);
+
+  function renderIntegration(){
+    var url=location.origin+"/api/webhook?key=SUA_CHAVE_DO_WEBHOOK";
+    $("#hookUrl").value=url;
+    $("#hookEx").textContent='POST '+location.origin+'/api/webhook\nX-Webhook-Key: SUA_CHAVE_DO_WEBHOOK\nContent-Type: application/json\n\n'+JSON.stringify({name:"Maria Silva",phone:"21999998888",tema:"IMPLANTE",stage:"conversando",source:"formulario-meta",utm_source:"facebook",utm_medium:"paid",utm_campaign:"lumera-whatsapp",utm_content:"video-implante",message:"Olá! ... (cód. LABC12XYZ)"},null,2);
+    $("#status").innerHTML="<dt>Banco de dados</dt><dd>"+(data.storage==="redis"?"Conectado (Upstash Redis)":"Não conectado, usando memória temporária")+"</dd><dt>API de Conversões</dt><dd>"+(data.capi?"Ligada":"Desligada (falta META_CAPI_TOKEN)")+"</dd><dt>Pixel</dt><dd>1127167810011936</dd><dt>Chave do webhook</dt><dd>"+(data.webhookKeySeparate?"WEBHOOK_KEY própria":"Mesma chave do CRM")+"</dd><dt>Leads</dt><dd class='mono'>"+data.leads.length+"</dd>";
+    buildUtm();
+  }
+  function buildUtm(){
+    var src=$("#uSrc").value.split("|"), p=new URLSearchParams();
+    p.set("utm_source",src[0]);p.set("utm_medium",src[1]);
+    if($("#uCamp").value)p.set("utm_campaign",$("#uCamp").value.trim());
+    if($("#uCont").value)p.set("utm_content",$("#uCont").value.trim());
+    if($("#uTema").value)p.set("t",$("#uTema").value);
+    $("#uOut").value=location.origin+"/?"+p.toString();
+  }
+  ["uCamp","uCont","uSrc","uTema"].forEach(function(id){$("#"+id).addEventListener("input",buildUtm)});
+  document.querySelectorAll("[data-copy]").forEach(function(b){b.addEventListener("click",function(){
+    var el=$("#"+b.dataset.copy);
+    navigator.clipboard.writeText(el.value).then(function(){toast("Copiado")},function(){el.select();toast("Selecionado: use Ctrl+C")});
+  })});
+
+  ["q","fCamp","fTema","fPer"].forEach(function(id){$("#"+id).addEventListener("input",render)});
+
+  /* Arrastar entre colunas */
+  var dragId=null;
+  $("#board").addEventListener("dragstart",function(e){var c=e.target.closest(".lead");if(c){dragId=c.dataset.id;e.dataTransfer.effectAllowed="move"}});
+  $("#board").addEventListener("dragover",function(e){var col=e.target.closest(".col");if(col&&dragId){e.preventDefault();document.querySelectorAll(".col").forEach(function(x){x.classList.toggle("drop",x===col)})}});
+  $("#board").addEventListener("dragleave",function(e){if(!e.relatedTarget||!e.currentTarget.contains(e.relatedTarget))document.querySelectorAll(".col").forEach(function(x){x.classList.remove("drop")})});
+  $("#board").addEventListener("drop",async function(e){var col=e.target.closest(".col");document.querySelectorAll(".col").forEach(function(x){x.classList.remove("drop")});if(!col||!dragId)return;e.preventDefault();
+    var id=dragId;dragId=null;var l=data.leads.find(function(x){return x.id===id});if(!l||l.stage===col.dataset.stage)return;
+    var st=col.dataset.stage;
+    if(st==="fechou"&&!l.value){openLead(l);pendingStage="fechou";paintStages();toast("Informe o valor e salve");return}
+    try{var r=await api("/api/leads?id="+encodeURIComponent(id),{method:"PATCH",body:JSON.stringify({stage:st})});Object.assign(l,r.lead);render();toast("Movido para "+LABEL[st])}catch(err){toast(err.message)}
+  });
+  $("#board").addEventListener("click",function(e){var c=e.target.closest(".lead");if(c)openLead(data.leads.find(function(x){return x.id===c.dataset.id}))});
+
+  /* Gaveta */
+  function paintStages(){
+    var st=pendingStage||(current&&current.stage)||"novo";
+    $("#dStages").innerHTML=STAGES.map(function(s){return "<button type='button' data-s='"+s[0]+"' style='--c:var(--"+s[0]+")' class='"+(s[0]===st?"on":"")+"'>"+s[1]+"</button>"}).join("");
+  }
+  $("#dStages").addEventListener("click",function(e){var b=e.target.closest("button");if(b){pendingStage=b.dataset.s;paintStages()}});
+  function openLead(l){
+    current=l||null;pendingStage=l?null:"novo";
+    $("#dTitle").textContent=l?(l.name||l.id):"Novo lead";
+    $("#dName").value=l&&l.name||"";$("#dPhone").value=l&&l.phone?fmtPhone(l.phone):"";
+    $("#dTema").value=l&&l.tema||"AVALIAÇÃO";$("#dValue").value=l&&l.value?String(l.value).replace(".",","):"";
+    $("#dCamp").value=l&&l.utm_campaign||"";$("#dCont").value=l&&l.utm_content||"";$("#dNotes").value=l&&l.notes||"";
+    $("#dInfo").innerHTML=l?[["Código",l.id],["Origem",l.origin],["Criado",new Date(l.createdAt).toLocaleString("pt-BR")],["utm_source",l.utm_source],["utm_medium",l.utm_medium],["utm_term",l.utm_term],["Página",l.landing],["fbclid",l.fbclid?"sim":""],["Cookie Meta",l.fbc||l.fbp?"sim":""]].filter(function(x){return x[1]}).map(function(x){return "<dt>"+x[0]+"</dt><dd>"+esc(x[1])+"</dd>"}).join(""):"";
+    $("#dHist").innerHTML=l&&l.history&&l.history.length?l.history.slice().reverse().map(function(h){var capi=h.capi?(h.capi.ok?" · enviado ao Meta ("+h.capi.event+")":h.capi.skipped?" · Meta: "+h.capi.skipped:" · Meta falhou: "+esc(h.capi.error)):"";return "<div><b>"+(h.stage?LABEL[h.stage]||h.stage:"Edição")+"</b> · "+new Date(h.at).toLocaleString("pt-BR")+" · "+esc(h.by||"")+capi+(h.note?"<br>"+esc(h.note):"")+"</div>"}).join(""):"<div>Sem histórico ainda.</div>";
+    var ph=l&&l.phone;$("#dWa").classList.toggle("hidden",!ph);if(ph)$("#dWa").href="https://wa.me/"+ph;
+    paintStages();$("#drawer").classList.add("on");$("#scrim").classList.add("on");
+  }
+  function closeDrawer(){$("#drawer").classList.remove("on");$("#scrim").classList.remove("on");current=null;pendingStage=null}
+  $("#dClose").addEventListener("click",closeDrawer);$("#scrim").addEventListener("click",closeDrawer);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")closeDrawer()});
+  $("#newLead").addEventListener("click",function(){openLead(null)});
+  $("#dSave").addEventListener("click",async function(){
+    var v=$("#dValue").value.replace(/\./g,"").replace(",",".").trim();
+    var p={name:$("#dName").value.trim(),phone:$("#dPhone").value.trim(),tema:$("#dTema").value,notes:$("#dNotes").value,utm_campaign:$("#dCamp").value.trim(),utm_content:$("#dCont").value.trim()};
+    if(v)p.value=Number(v);
+    var st=pendingStage||(current&&current.stage)||"novo";
+    if(st==="fechou"&&!p.value&&!(current&&current.value)){toast("Informe o valor fechado");$("#dValue").focus();return}
+    if(!current||st!==current.stage)p.stage=st;
+    if(!current&&!p.utm_campaign){p.utm_source="whatsapp";p.utm_medium="direto"}
+    try{
+      if(current){var r=await api("/api/leads?id="+encodeURIComponent(current.id),{method:"PATCH",body:JSON.stringify(p)});Object.assign(current,r.lead)}
+      else{var r2=await api("/api/leads",{method:"POST",body:JSON.stringify(p)});data.leads.unshift(r2.lead)}
+      closeDrawer();render();toast("Salvo");load(true);
+    }catch(err){toast(err.message)}
+  });
+
+  if(key)load();else $("#login").classList.remove("hidden");
+  setInterval(function(){if(key&&!$("#drawer").classList.contains("on"))load(true)},30000);
+})();
+</script>
+</body>
+</html>
