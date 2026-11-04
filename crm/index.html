@@ -51,6 +51,7 @@ textarea{min-height:90px;resize:vertical}
 .tabs{display:flex;gap:4px;background:var(--panel);padding:4px;border-radius:12px}
 .tabs button{border:0;background:transparent;padding:8px 14px;border-radius:9px;cursor:pointer;color:var(--muted)}
 .tabs button.on{background:var(--panel-2);color:var(--ivory)}
+.main>*{min-width:0}
 .main{padding:20px max(18px,env(safe-area-inset-right,0px)) 40px max(18px,env(safe-area-inset-left,0px));display:grid;gap:18px}
 .banner{border:1px solid rgba(229,183,95,.4);background:rgba(229,183,95,.08);border-radius:12px;padding:12px 14px;color:var(--ivory)}
 .banner b{color:var(--gold)}
@@ -146,6 +147,7 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
       <button data-tab="campanhas">Campanhas</button>
       <button data-tab="integracao" id="tabInteg" class="hidden">Integração</button>
     </div>
+    <a class="btn hidden" id="agGuide" href="/crm/agencia" style="border-color:var(--gold);color:var(--gold)">Guia da agência</a>
     <a class="btn" href="/crm/ajuda">Como usar</a>
     <button class="btn primary" id="newLead">+ Novo lead</button>
     <button class="btn" id="logout" title="Sair">Sair</button>
@@ -275,7 +277,7 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
     try{
       data=await api("/api/leads");me=data.me||null;
       var isAg=me&&me.role==="agencia";
-      $("#tabInteg").classList.toggle("hidden",!isAg);
+      $("#tabInteg").classList.toggle("hidden",!isAg);$("#agGuide").classList.toggle("hidden",!isAg);
       if(!isAg&&!$("#tab-integracao").classList.contains("hidden"))document.querySelector('[data-tab="funil"]').click();
       $("#login").classList.add("hidden");$("#app").classList.remove("hidden");
       if(isAg&&location.hash==="#integracao")$("#tabInteg").click();
