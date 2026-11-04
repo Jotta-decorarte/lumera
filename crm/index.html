@@ -225,6 +225,7 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
   <footer>
     <button class="btn primary" id="dSave">Salvar</button>
     <a class="btn wa" id="dWa" target="_blank" rel="noopener">Abrir WhatsApp</a>
+    <button class="btn" id="dDel" style="margin-left:auto">Excluir</button>
   </footer>
 </aside>
 <div class="toast" id="toast"></div>
@@ -370,12 +371,19 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
     $("#dCamp").value=l&&l.utm_campaign||"";$("#dCont").value=l&&l.utm_content||"";$("#dNotes").value=l&&l.notes||"";
     $("#dInfo").innerHTML=l?[["Código",l.id],["Origem",l.origin],["Criado",new Date(l.createdAt).toLocaleString("pt-BR")],["utm_source",l.utm_source],["utm_medium",l.utm_medium],["utm_term",l.utm_term],["Página",l.landing],["fbclid",l.fbclid?"sim":""],["Cookie Meta",l.fbc||l.fbp?"sim":""]].filter(function(x){return x[1]}).map(function(x){return "<dt>"+x[0]+"</dt><dd>"+esc(x[1])+"</dd>"}).join(""):"";
     $("#dHist").innerHTML=l&&l.history&&l.history.length?l.history.slice().reverse().map(function(h){var capi=h.capi?(h.capi.ok?" · enviado ao Meta ("+h.capi.event+")":h.capi.skipped?" · Meta: "+h.capi.skipped:" · Meta falhou: "+esc(h.capi.error)):"";return "<div><b>"+(h.stage?LABEL[h.stage]||h.stage:"Edição")+"</b> · "+new Date(h.at).toLocaleString("pt-BR")+" · "+esc(h.by||"")+capi+(h.note?"<br>"+esc(h.note):"")+"</div>"}).join(""):"<div>Sem histórico ainda.</div>";
+    $("#dDel").classList.toggle("hidden",!l);$("#dDel").textContent="Excluir";
     var ph=l&&l.phone;$("#dWa").classList.toggle("hidden",!ph);if(ph)$("#dWa").href="https://wa.me/"+ph;
     paintStages();$("#drawer").classList.add("on");$("#scrim").classList.add("on");
   }
   function closeDrawer(){$("#drawer").classList.remove("on");$("#scrim").classList.remove("on");current=null;pendingStage=null}
   $("#dClose").addEventListener("click",closeDrawer);$("#scrim").addEventListener("click",closeDrawer);
   document.addEventListener("keydown",function(e){if(e.key==="Escape")closeDrawer()});
+  var delArm=0;
+  $("#dDel").addEventListener("click",async function(){
+    if(!current)return closeDrawer();
+    if(Date.now()-delArm>4000){delArm=Date.now();$("#dDel").textContent="Toque de novo para excluir";setTimeout(function(){$("#dDel").textContent="Excluir"},4000);return}
+    try{await api("/api/leads?id="+encodeURIComponent(current.id),{method:"DELETE"});data.leads=data.leads.filter(function(l){return l!==current});closeDrawer();render();toast("Lead excluído")}catch(err){toast(err.message)}
+  });
   $("#newLead").addEventListener("click",function(){openLead(null)});
   $("#dSave").addEventListener("click",async function(){
     var v=$("#dValue").value.replace(/\./g,"").replace(",",".").trim();

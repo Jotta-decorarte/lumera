@@ -1,8 +1,9 @@
 // /api/leads — uso interno do CRM (precisa da chave CRM_KEY)
 // GET            lista os leads
 // POST           cria lead manual (ex.: paciente que chamou direto no WhatsApp pelo anúncio)
+// DELETE ?id=... apaga o lead
 // PATCH ?id=...  atualiza etapa, nome, telefone, valor, notas (etapas agendou/fechou enviam evento ao Meta)
-import { body, send, cors, isCrm, pickFields, getLead, listLeads, newId, saveLead, applyUpdate, storageMode, STAGES } from "./_lib.js";
+import { body, send, cors, isCrm, pickFields, getLead, listLeads, newId, saveLead, applyUpdate, deleteLead, storageMode, STAGES } from "./_lib.js";
 
 export default async function handler(req, res) {
   if (cors(req, res)) return;
@@ -36,6 +37,12 @@ export default async function handler(req, res) {
       const saved = await applyUpdate(lead, f, "crm");
       delete saved.ip; delete saved.ua;
       return send(res, 200, { ok: true, lead: saved });
+    }
+    if (req.method === "DELETE") {
+      const id = String(req.query?.id || "");
+      if (!(await getLead(id))) return send(res, 404, { error: "Lead não encontrado" });
+      await deleteLead(id);
+      return send(res, 200, { ok: true, deleted: id });
     }
     send(res, 405, { error: "Método não suportado" });
   } catch (e) {

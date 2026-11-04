@@ -37,6 +37,8 @@ function memCmd([op, ...a]) {
     case "SET": mem.kv.set(a[0], a[1]); return "OK";
     case "MGET": return a.map((k) => mem.kv.get(k) ?? null);
     case "ZADD": mem.z.set(a[2], Number(a[1])); return 1;
+    case "DEL": return mem.kv.delete(a[0]) ? 1 : 0;
+    case "ZREM": return mem.z.delete(a[1]) ? 1 : 0;
     case "ZREVRANGE": return [...mem.z.entries()].sort((x, y) => y[1] - x[1]).slice(Number(a[1]), Number(a[2]) + 1).map((e) => e[0]);
     default: throw new Error("memCmd " + op);
   }
@@ -54,6 +56,10 @@ export async function saveLead(lead) {
     ["ZADD", "leads", String(Date.parse(lead.createdAt) || Date.now()), lead.id],
   ]);
   return lead;
+}
+
+export async function deleteLead(id) {
+  await redis([["DEL", "lead:" + id], ["ZREM", "leads", id]]);
 }
 
 export async function listLeads(limit = 1000) {
@@ -78,13 +84,13 @@ export function send(res, status, data) {
 export function cors(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-CRM-Key, X-Webhook-Key");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS");
   if (req.method === "OPTIONS") { res.status(204).end(); return true; }
   return false;
 }
 
 function safeEqual(a, b) {
-  const x = Buffer.from(String(a || "")), y = Buffer.from(String(b || ""));
+  const x = Buffer.from(String(a || "").trim()), y = Buffer.from(String(b || "").trim());
   return x.length > 0 && x.length === y.length && crypto.timingSafeEqual(x, y);
 }
 
