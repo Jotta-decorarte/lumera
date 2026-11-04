@@ -34,11 +34,13 @@ function memCmd([op, ...a]) {
   // Só para testes locais: some quando a função reinicia.
   switch (op) {
     case "GET": return mem.kv.get(a[0]) ?? null;
-    case "SET": mem.kv.set(a[0], a[1]); return "OK";
+    case "SET": if (a[2] === "NX" && mem.kv.has(a[0])) return null; mem.kv.set(a[0], a[1]); return "OK";
     case "MGET": return a.map((k) => mem.kv.get(k) ?? null);
     case "ZADD": mem.z.set(a[2], Number(a[1])); return 1;
     case "DEL": return mem.kv.delete(a[0]) ? 1 : 0;
     case "ZREM": return mem.z.delete(a[1]) ? 1 : 0;
+    case "INCR": { const v = Number(mem.kv.get(a[0]) || 0) + 1; mem.kv.set(a[0], String(v)); return v; }
+    case "EXPIRE": return 1;
     case "ZREVRANGE": return [...mem.z.entries()].sort((x, y) => y[1] - x[1]).slice(Number(a[1]), Number(a[2]) + 1).map((e) => e[0]);
     default: throw new Error("memCmd " + op);
   }
@@ -101,10 +103,24 @@ export function isCrm(req) {
   return safeEqual(got, key);
 }
 
-export function isWebhook(req) {
+export async function isWebhook(req) {
   const got = req.headers["x-webhook-key"] || req.query?.key || (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
-  // Aceita a chave própria do webhook ou a chave do CRM
-  return [process.env.WEBHOOK_KEY, process.env.CRM_KEY].some((k) => k && safeEqual(got, k));
+  // Aceita a WEBHOOK_KEY da Vercel ou a chave gerada e guardada no banco (aparece na aba Integração da agência)
+  const stored = await getSecret("webhook", 18);
+  return [process.env.WEBHOOK_KEY, stored].some((k) => k && safeEqual(got, k));
+}
+
+// Segredos gerados na primeira vez e guardados no banco (não ficam no código nem com a clínica)
+const secretCache = {};
+export async function getSecret(name, bytes = 32) {
+  if (secretCache[name]) return secretCache[name];
+  const [v] = await redis([["GET", "secret:" + name]]);
+  if (v) return (secretCache[name] = v);
+  const fresh = crypto.randomBytes(bytes).toString("base64url");
+  const [ok] = await redis([["SET", "secret:" + name, fresh, "NX"]]);
+  if (ok) return (secretCache[name] = fresh);
+  const [again] = await redis([["GET", "secret:" + name]]);
+  return (secretCache[name] = again);
 }
 
 export const clientIp = (req) => String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() || null;
@@ -195,4 +211,97 @@ export async function applyUpdate(lead, changes, by) {
   }
   if (lead.history.length > 50) lead.history = lead.history.slice(-50);
   return saveLead(lead);
+}
+
+
+/* ---------------- Segurança: usuários, senhas, sessão, limites ---------------- */
+// Senhas guardadas só como hash scrypt com sal aleatório. Nunca em texto puro.
+export function hashPassword(pw) {
+  const salt = crypto.randomBytes(16);
+  const hash = crypto.scryptSync(String(pw), salt, 64, { N: 16384, r: 8, p: 1 });
+  return "scrypt$" + salt.toString("hex") + "$" + hash.toString("hex");
+}
+export function verifyPassword(pw, stored) {
+  const [alg, saltHex, hashHex] = String(stored || "").split("$");
+  if (alg !== "scrypt" || !saltHex || !hashHex) {
+    crypto.scryptSync("x", "padding-salt", 64); // mesmo tempo de resposta quando o usuário não existe
+    return false;
+  }
+  const got = crypto.scryptSync(String(pw), Buffer.from(saltHex, "hex"), 64, { N: 16384, r: 8, p: 1 });
+  const want = Buffer.from(hashHex, "hex");
+  return got.length === want.length && crypto.timingSafeEqual(got, want);
+}
+
+export async function getUsers() {
+  const [v] = await redis([["GET", "users"]]);
+  return v ? JSON.parse(v) : {};
+}
+export async function saveUsers(users) {
+  await redis([["SET", "users", JSON.stringify(users)]]);
+}
+
+// Limite de tentativas: devolve true se ainda pode tentar
+export async function rateLimit(key, limit, windowSec) {
+  const [n] = await redis([["INCR", "rl:" + key]]);
+  if (Number(n) === 1) await redis([["EXPIRE", "rl:" + key, String(windowSec)]]);
+  return Number(n) <= limit;
+}
+export async function rateCount(key) {
+  const [v] = await redis([["GET", "rl:" + key]]);
+  return Number(v || 0);
+}
+export async function rateReset(key) {
+  await redis([["DEL", "rl:" + key]]);
+}
+
+// Sessão assinada com HMAC (o segredo é a CRM_KEY ou SESSION_SECRET da Vercel)
+const COOKIE = "lumera_sess";
+let SESSION_KEY = "";
+async function sessionKey() { return process.env.SESSION_SECRET || (SESSION_KEY ||= await getSecret("session", 32)); }
+const b64u = (b) => Buffer.from(b).toString("base64url");
+export async function signSession(data) {
+  const payload = b64u(JSON.stringify(data));
+  const sig = crypto.createHmac("sha256", await sessionKey()).update(payload).digest("base64url");
+  return payload + "." + sig;
+}
+async function readSession(token) {
+  if (!token) return null;
+  const [payload, sig] = String(token).split(".");
+  if (!payload || !sig) return null;
+  const want = crypto.createHmac("sha256", await sessionKey()).update(payload).digest("base64url");
+  if (!safeEqual(sig, want)) return null;
+  try {
+    const d = JSON.parse(Buffer.from(payload, "base64url").toString());
+    return d.exp > Date.now() ? d : null;
+  } catch { return null; }
+}
+function cookies(req) {
+  return Object.fromEntries(String(req.headers.cookie || "").split(";").map((c) => c.trim().split("=")).filter((x) => x[0]).map(([k, ...v]) => [k, decodeURIComponent(v.join("="))]));
+}
+export async function setSessionCookie(res, data, maxAgeSec) {
+  const tok = await signSession({ ...data, exp: Date.now() + maxAgeSec * 1000 });
+  res.setHeader("Set-Cookie", `${COOKIE}=${tok}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${maxAgeSec}`);
+}
+export function clearSessionCookie(res) {
+  res.setHeader("Set-Cookie", `${COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`);
+}
+
+// Quem está chamando: sessão (cookie) ou chave mestra no cabeçalho (automação). Confere se o usuário ainda existe com a mesma versão de senha.
+export async function whoAmI(req) {
+  const users = await getUsers();
+  // A chave mestra (CRM_KEY) só vale para a configuração inicial, enquanto não existe nenhum usuário de agência
+  const hasAgency = Object.values(users).some((u) => u.role === "agencia");
+  if (!hasAgency && isCrm(req)) return { user: "configuracao-inicial", role: "agencia", via: "key" };
+  const s = await readSession(cookies(req)[COOKIE]);
+  if (!s) return null;
+  const u = users[s.user];
+  if (!u || u.role !== s.role || u.v !== s.v) return null; // senha trocada ou usuário removido derruba a sessão
+  return { user: s.user, role: s.role, via: "cookie" };
+}
+
+// Proteção contra ataque entre sites: pedidos que alteram dados com cookie precisam vir do próprio CRM
+export function sameOriginOk(req, me) {
+  if (!me || me.via === "key") return true;
+  if (req.method === "GET") return true;
+  return req.headers["x-requested-with"] === "lumera-crm";
 }

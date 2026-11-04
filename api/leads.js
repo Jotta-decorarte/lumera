@@ -3,20 +3,21 @@
 // POST           cria lead manual (ex.: paciente que chamou direto no WhatsApp pelo anúncio)
 // DELETE ?id=... apaga o lead
 // PATCH ?id=...  atualiza etapa, nome, telefone, valor, notas (etapas agendou/fechou enviam evento ao Meta)
-import { body, send, cors, isCrm, pickFields, getLead, listLeads, newId, saveLead, applyUpdate, deleteLead, storageMode, STAGES } from "./_lib.js";
+import { body, send, whoAmI, sameOriginOk, pickFields, getLead, listLeads, newId, saveLead, applyUpdate, deleteLead, storageMode, STAGES } from "./_lib.js";
 
 export default async function handler(req, res) {
-  if (cors(req, res)) return;
   if (!process.env.CRM_KEY) return send(res, 503, { error: "CRM_KEY não configurada na Vercel" });
-  if (!isCrm(req)) return send(res, 401, { error: "Chave do CRM inválida" });
+  const me = await whoAmI(req);
+  if (!me) return send(res, 401, { error: "Faça login para continuar" });
+  if (!sameOriginOk(req, me)) return send(res, 400, { error: "Pedido inválido" });
 
   try {
     if (req.method === "GET") {
       const leads = await listLeads();
       leads.forEach((l) => { delete l.ip; delete l.ua; });
       return send(res, 200, {
-        leads, stages: STAGES, storage: storageMode(),
-        capi: !!process.env.META_CAPI_TOKEN, webhookKeySeparate: !!process.env.WEBHOOK_KEY,
+        leads, stages: STAGES, storage: storageMode(), me: { user: me.user, role: me.role },
+        capi: !!process.env.META_CAPI_TOKEN,
       });
     }
     if (req.method === "POST") {
@@ -24,7 +25,7 @@ export default async function handler(req, res) {
       const lead = { id: newId(), origin: "manual", createdAt: new Date().toISOString(), stage: "novo", ...f, history: [] };
       const stage = lead.stage; lead.stage = "novo";
       await saveLead(lead);
-      if (stage !== "novo") await applyUpdate(lead, { stage }, "crm");
+      if (stage !== "novo") await applyUpdate(lead, { stage }, "crm:" + me.user);
       return send(res, 201, { ok: true, lead });
     }
     if (req.method === "PATCH") {
@@ -34,7 +35,7 @@ export default async function handler(req, res) {
       const b = body(req);
       const f = pickFields(b);
       if ("notes" in b && !b.notes) f.notes = "";
-      const saved = await applyUpdate(lead, f, "crm");
+      const saved = await applyUpdate(lead, f, "crm:" + me.user);
       delete saved.ip; delete saved.ua;
       return send(res, 200, { ok: true, lead: saved });
     }

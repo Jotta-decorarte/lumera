@@ -128,8 +128,9 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
   <form id="loginForm">
     <img src="/assets/logo.png" alt="Luméra">
     <h1>CRM Luméra</h1>
-    <p>Digite a chave de acesso do CRM.</p>
-    <div class="field"><label for="key">Chave</label><input id="key" type="password" autocomplete="current-password" required></div>
+    <p id="loginMsg">Entre com seu usuário e senha.</p>
+    <div class="field"><label for="user">Usuário</label><input id="user" autocomplete="username" autocapitalize="none" spellcheck="false" required></div>
+    <div class="field"><label for="key">Senha</label><input id="key" type="password" autocomplete="current-password" required></div>
     <button class="btn primary" type="submit">Entrar</button>
     <div class="err" id="loginErr"></div>
     <a href="/crm/ajuda">Como usar o CRM</a>
@@ -143,7 +144,7 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
     <div class="tabs" role="tablist">
       <button class="on" data-tab="funil">Funil</button>
       <button data-tab="campanhas">Campanhas</button>
-      <button data-tab="integracao">Integração</button>
+      <button data-tab="integracao" id="tabInteg" class="hidden">Integração</button>
     </div>
     <a class="btn" href="/crm/ajuda">Como usar</a>
     <button class="btn primary" id="newLead">+ Novo lead</button>
@@ -195,6 +196,17 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
         <p>Etapas aceitas em <code>stage</code>: novo, conversando, agendou, compareceu, fechou, perdido. Ao mover para <b>conversando</b>, <b>agendou</b> ou <b>fechou</b>, o CRM envia Lead, Schedule ou Purchase para o Pixel pela API de Conversões.</p>
       </div>
       <div class="cardbox">
+        <h2>Usuários e senhas</h2>
+        <p>Crie usuários ou troque senhas. Ao trocar, quem estava conectado com a senha antiga é desconectado.</p>
+        <div id="userList" class="hist"></div>
+        <div class="row2">
+          <div class="field"><label for="uUser">Usuário</label><input id="uUser" placeholder="adm" autocapitalize="none"></div>
+          <div class="field"><label for="uRole">Perfil</label><select id="uRole"><option value="clinica">Clínica</option><option value="agencia">Agência</option></select></div>
+        </div>
+        <div class="field"><label for="uPass">Nova senha (mínimo 8 caracteres)</label><input id="uPass" type="password" autocomplete="new-password"></div>
+        <button class="btn primary" id="uSave" type="button">Salvar usuário</button>
+      </div>
+      <div class="cardbox">
         <h2>Guias</h2>
         <p><a href="/crm/ajuda">Como usar o CRM (recepção)</a></p>
         <p><a href="/crm/agencia">Guia da agência: ligar campanhas, Pixel e chaves</a></p>
@@ -243,8 +255,8 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
   var STAGES=[["novo","Novo"],["conversando","Conversando"],["agendou","Agendou"],["compareceu","Compareceu"],["fechou","Fechou"],["perdido","Perdido"]];
   var LABEL=Object.fromEntries(STAGES);
   var $=function(s){return document.querySelector(s)};
-  var key="", data={leads:[]}, current=null, pendingStage=null;
-  try{key=localStorage.getItem("lumera_crm_key")||""}catch(e){}
+  var data={leads:[]}, current=null, pendingStage=null, me=null;
+  try{localStorage.removeItem("lumera_crm_key")}catch(e){}
 
   function toast(t){var el=$("#toast");el.textContent=t;el.classList.add("on");clearTimeout(toast.t);toast.t=setTimeout(function(){el.classList.remove("on")},2200)}
   function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
@@ -253,7 +265,7 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
   function fmtPhone(p){p=String(p||"");var m=p.match(/^55(\d{2})(\d{4,5})(\d{4})$/);return m?"("+m[1]+") "+m[2]+"-"+m[3]:p}
 
   async function api(path,opt){
-    opt=opt||{};opt.headers=Object.assign({"X-CRM-Key":key,"Content-Type":"application/json"},opt.headers||{});
+    opt=opt||{};opt.headers=Object.assign({"X-Requested-With":"lumera-crm","Content-Type":"application/json"},opt.headers||{});opt.credentials="same-origin";
     var r=await fetch(path,opt);var j=await r.json().catch(function(){return{}});
     if(!r.ok){var e=new Error(j.error||("Erro "+r.status));e.status=r.status;throw e}
     return j;
@@ -261,17 +273,39 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
 
   async function load(silent){
     try{
-      data=await api("/api/leads");
+      data=await api("/api/leads");me=data.me||null;
+      var isAg=me&&me.role==="agencia";
+      $("#tabInteg").classList.toggle("hidden",!isAg);
+      if(!isAg&&!$("#tab-integracao").classList.contains("hidden"))document.querySelector('[data-tab="funil"]').click();
       $("#login").classList.add("hidden");$("#app").classList.remove("hidden");
+      if(isAg&&location.hash==="#integracao")$("#tabInteg").click();
+      if(isAg)loadUsers();
       render();$("#updated").textContent="Atualizado "+new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
     }catch(e){
-      if(e.status===401||e.status===503){$("#app").classList.add("hidden");$("#login").classList.remove("hidden");$("#loginErr").textContent=e.status===503?"A chave do CRM ainda não foi configurada na Vercel (CRM_KEY).":(key?"Chave incorreta.":"")}
+      if(e.status===401||e.status===503){me=null;$("#app").classList.add("hidden");$("#login").classList.remove("hidden");if(e.status===503)$("#loginErr").textContent="O CRM ainda não foi configurado na Vercel (CRM_KEY)."}
       else if(!silent)toast(e.message);
     }
   }
 
-  $("#loginForm").addEventListener("submit",function(ev){ev.preventDefault();key=$("#key").value.trim();try{localStorage.setItem("lumera_crm_key",key)}catch(e){}load()});
-  $("#logout").addEventListener("click",function(){key="";try{localStorage.removeItem("lumera_crm_key")}catch(e){}location.reload()});
+  if(new URLSearchParams(location.search).get("area")==="agencia")$("#loginMsg").textContent="A área da agência pede o login da agência.";
+  $("#loginForm").addEventListener("submit",async function(ev){ev.preventDefault();
+    var btn=ev.submitter||$("#loginForm button");btn.disabled=true;$("#loginErr").textContent="";
+    try{var r=await api("/api/auth",{method:"POST",body:JSON.stringify({action:"login",user:$("#user").value.trim(),password:$("#key").value})});
+      $("#key").value="";
+      if(new URLSearchParams(location.search).get("area")==="agencia"&&r.role==="agencia"){location.href="/crm/agencia";return}
+      await load();
+    }catch(e){$("#loginErr").textContent=e.message}finally{btn.disabled=false}
+  });
+  $("#logout").addEventListener("click",async function(){try{await api("/api/auth",{method:"POST",body:JSON.stringify({action:"logout"})})}catch(e){}location.href="/crm"});
+  async function loadUsers(){try{var r=await api("/api/auth",{method:"POST",body:JSON.stringify({action:"list-users"})});
+    if(r.webhookKey){window.__hook=r.webhookKey;$("#hookUrl").value=location.origin+"/api/webhook?key="+r.webhookKey}
+    $("#userList").innerHTML=r.users.map(function(u){return "<div><b>"+esc(u.user)+"</b> · "+(u.role==="agencia"?"Agência":"Clínica")+(u.updatedAt?" · senha alterada em "+new Date(u.updatedAt).toLocaleDateString("pt-BR"):"")+"</div>"}).join("")||"<div>Nenhum usuário.</div>"}catch(e){}}
+  $("#uSave").addEventListener("click",async function(){
+    try{await api("/api/auth",{method:"POST",body:JSON.stringify({action:"set-user",user:$("#uUser").value.trim(),role:$("#uRole").value,password:$("#uPass").value})});
+      $("#uPass").value="";toast("Usuário salvo");loadUsers();
+      if(me&&$("#uUser").value.trim().toLowerCase()===me.user){toast("Sua senha mudou. Entre de novo.");setTimeout(function(){location.reload()},1200)}
+    }catch(e){toast(e.message)}
+  });
 
   document.querySelectorAll(".tabs button").forEach(function(b){b.addEventListener("click",function(){
     document.querySelectorAll(".tabs button").forEach(function(x){x.classList.toggle("on",x===b)});
@@ -298,9 +332,9 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
     $("#campList").innerHTML=camps.filter(function(c){return c[0]!=="("}).map(function(c){return "<option value=\""+esc(c)+"\">"}).join("");
     $("#contList").innerHTML=[...new Set(data.leads.map(function(l){return l.utm_content}).filter(Boolean))].map(function(c){return "<option value=\""+esc(c)+"\">"}).join("");
 
-    var b=[];
-    if(data.storage==="memory")b.push("<div class='banner'><b>Banco de dados não conectado.</b> Os leads ficam só na memória e somem. Conecte o Upstash Redis no projeto da Vercel (Storage).</div>");
-    if(!data.capi)b.push("<div class='banner'><b>API de Conversões desligada.</b> Adicione <code>META_CAPI_TOKEN</code> na Vercel para enviar Agendou e Fechou ao Pixel.</div>");
+    var b=[];var ag=me&&me.role==="agencia";
+    if(ag&&data.storage==="memory")b.push("<div class='banner'><b>Banco de dados não conectado.</b> Os leads ficam só na memória e somem. Conecte o Upstash Redis no projeto da Vercel (Storage).</div>");
+    if(ag&&!data.capi)b.push("<div class='banner'><b>API de Conversões desligada.</b> Adicione <code>META_CAPI_TOKEN</code> na Vercel para enviar Agendou e Fechou ao Pixel.</div>");
     $("#banners").innerHTML=b.join("");
 
     var L=filtered(), by={};STAGES.forEach(function(s){by[s[0]]=[]});L.forEach(function(l){(by[l.stage]||by.novo).push(l)});
@@ -330,10 +364,9 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
   $("#groupBy").addEventListener("change",renderCamp);
 
   function renderIntegration(){
-    var url=location.origin+"/api/webhook?key=SUA_CHAVE_DO_WEBHOOK";
-    $("#hookUrl").value=url;
+    $("#hookUrl").value=location.origin+"/api/webhook?key="+(window.__hook||"(carregando)");
     $("#hookEx").textContent='POST '+location.origin+'/api/webhook\nX-Webhook-Key: SUA_CHAVE_DO_WEBHOOK\nContent-Type: application/json\n\n'+JSON.stringify({name:"Maria Silva",phone:"21999998888",tema:"IMPLANTE",stage:"conversando",source:"formulario-meta",utm_source:"facebook",utm_medium:"paid",utm_campaign:"lumera-whatsapp",utm_content:"video-implante",message:"Olá! ... (cód. LABC12XYZ)"},null,2);
-    $("#status").innerHTML="<dt>Banco de dados</dt><dd>"+(data.storage==="redis"?"Conectado (Upstash Redis)":"Não conectado, usando memória temporária")+"</dd><dt>API de Conversões</dt><dd>"+(data.capi?"Ligada":"Desligada (falta META_CAPI_TOKEN)")+"</dd><dt>Pixel</dt><dd>1127167810011936</dd><dt>Chave do webhook</dt><dd>"+(data.webhookKeySeparate?"WEBHOOK_KEY própria":"Mesma chave do CRM")+"</dd><dt>Leads</dt><dd class='mono'>"+data.leads.length+"</dd>";
+    $("#status").innerHTML="<dt>Banco de dados</dt><dd>"+(data.storage==="redis"?"Conectado (Upstash Redis)":"Não conectado, usando memória temporária")+"</dd><dt>API de Conversões</dt><dd>"+(data.capi?"Ligada":"Desligada (falta META_CAPI_TOKEN)")+"</dd><dt>Pixel</dt><dd>1127167810011936</dd><dt>Conectado como</dt><dd>"+esc(me?me.user:"")+"</dd><dt>Leads</dt><dd class='mono'>"+data.leads.length+"</dd>";
     buildUtm();
   }
   function buildUtm(){
@@ -421,8 +454,8 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
     }catch(err){toast(err.message)}
   });
 
-  if(key)load();else $("#login").classList.remove("hidden");
-  setInterval(function(){if(key&&!$("#drawer").classList.contains("on"))load(true)},30000);
+  load(true);
+  setInterval(function(){if(me&&!$("#drawer").classList.contains("on"))load(true)},30000);
 })();
 </script>
 </body>

@@ -8,7 +8,7 @@ export default async function handler(req, res) {
   if (cors(req, res)) return;
   if (req.method === "GET") return send(res, 200, { ok: true, info: "Envie POST com JSON. Autentique com ?key= ou cabeçalho X-Webhook-Key." });
   if (req.method !== "POST") return send(res, 405, { error: "Use POST" });
-  if (!isWebhook(req)) return send(res, 401, { error: "Chave do webhook inválida" });
+  if (!(await isWebhook(req))) return send(res, 401, { error: "Chave do webhook inválida" });
 
   try {
     const items = Array.isArray(req.body) ? req.body : [body(req)];
