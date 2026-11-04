@@ -102,10 +102,9 @@ export function isCrm(req) {
 }
 
 export function isWebhook(req) {
-  const key = process.env.WEBHOOK_KEY || process.env.CRM_KEY;
-  if (!key) return false;
   const got = req.headers["x-webhook-key"] || req.query?.key || (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
-  return safeEqual(got, key);
+  // Aceita a chave própria do webhook ou a chave do CRM
+  return [process.env.WEBHOOK_KEY, process.env.CRM_KEY].some((k) => k && safeEqual(got, k));
 }
 
 export const clientIp = (req) => String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() || null;
