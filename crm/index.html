@@ -132,6 +132,7 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
     <div class="field"><label for="key">Chave</label><input id="key" type="password" autocomplete="current-password" required></div>
     <button class="btn primary" type="submit">Entrar</button>
     <div class="err" id="loginErr"></div>
+    <a href="/crm/ajuda">Como usar o CRM</a>
   </form>
 </section>
 
@@ -144,6 +145,7 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
       <button data-tab="campanhas">Campanhas</button>
       <button data-tab="integracao">Integração</button>
     </div>
+    <a class="btn" href="/crm/ajuda">Como usar</a>
     <button class="btn primary" id="newLead">+ Novo lead</button>
     <button class="btn" id="logout" title="Sair">Sair</button>
   </div>
@@ -193,6 +195,11 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
         <p>Etapas aceitas em <code>stage</code>: novo, conversando, agendou, compareceu, fechou, perdido. Ao mover para <b>conversando</b>, <b>agendou</b> ou <b>fechou</b>, o CRM envia Lead, Schedule ou Purchase para o Pixel pela API de Conversões.</p>
       </div>
       <div class="cardbox">
+        <h2>Guias</h2>
+        <p><a href="/crm/ajuda">Como usar o CRM (recepção)</a></p>
+        <p><a href="/crm/agencia">Guia da agência: ligar campanhas, Pixel e chaves</a></p>
+      </div>
+      <div class="cardbox">
         <h2>Status</h2>
         <dl class="info" id="status"></dl>
       </div>
@@ -204,6 +211,7 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
 <aside class="drawer" id="drawer" aria-label="Lead">
   <header><h2 id="dTitle">Lead</h2><button class="btn" id="dClose">Fechar</button></header>
   <div class="body">
+    <div class="field" id="dPasteWrap"><label for="dPaste">Colar mensagem do WhatsApp</label><textarea id="dPaste" style="min-height:64px" placeholder="Cole aqui a mensagem que o paciente mandou"></textarea><small id="dPasteInfo" style="color:var(--muted)">O CRM encontra o código do paciente e o assunto sozinho.</small></div>
     <div class="stagepick" id="dStages"></div>
     <div class="row2">
       <div class="field"><label for="dName">Nome</label><input id="dName"></div>
@@ -364,7 +372,8 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
   }
   $("#dStages").addEventListener("click",function(e){var b=e.target.closest("button");if(b){pendingStage=b.dataset.s;paintStages()}});
   function openLead(l){
-    current=l||null;pendingStage=l?null:"novo";
+    current=l||null;pendingStage=l?null:"conversando";
+    $("#dPasteWrap").classList.toggle("hidden",!!l);$("#dPaste").value="";$("#dPasteInfo").textContent="O CRM encontra o código do paciente e o assunto sozinho.";
     $("#dTitle").textContent=l?(l.name||l.id):"Novo lead";
     $("#dName").value=l&&l.name||"";$("#dPhone").value=l&&l.phone?fmtPhone(l.phone):"";
     $("#dTema").value=l&&l.tema||"AVALIAÇÃO";$("#dValue").value=l&&l.value?String(l.value).replace(".",","):"";
@@ -383,6 +392,18 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
     if(!current)return closeDrawer();
     if(Date.now()-delArm>4000){delArm=Date.now();$("#dDel").textContent="Toque de novo para excluir";setTimeout(function(){$("#dDel").textContent="Excluir"},4000);return}
     try{await api("/api/leads?id="+encodeURIComponent(current.id),{method:"DELETE"});data.leads=data.leads.filter(function(l){return l!==current});closeDrawer();render();toast("Lead excluído")}catch(err){toast(err.message)}
+  });
+  /* Colar mensagem: acha o código do site ou detecta o assunto */
+  $("#dPaste").addEventListener("input",function(){
+    var msg=$("#dPaste").value, up=msg.toUpperCase();
+    var m=up.match(/C[ÓO]D\.?\s*(L[A-Z0-9]{5,12})/)||up.match(/\b(L[A-Z0-9]{8,12})\b/);
+    if(m){var found=data.leads.find(function(x){return x.id===m[1]});
+      if(found){openLead(found);if(found.stage==="novo"){pendingStage="conversando";paintStages()}toast("Paciente encontrado: veio de "+(found.utm_campaign||found.origin||"site"));$("#dName").focus();return}
+      $("#dPasteInfo").textContent="Código "+m[1]+" não encontrado. Vou criar um paciente novo.";}
+    var t=/IMPLANTE/.test(up)?"IMPLANTE":/CLAREAMENTO|CLAREAR/.test(up)?"CLAREAMENTO":/PREVEN[CÇ][AÃ]O|LIMPEZA|REVIS[AÃ]O/.test(up)?"PREVENÇÃO":"";
+    if(t){$("#dTema").value=t;if(!m)$("#dPasteInfo").textContent="Assunto detectado: "+t+". Preencha nome e WhatsApp e salve."}
+    if(/VI O AN[ÚU]NCIO/.test(up)&&!m){if(!$("#dCamp").value)$("#dCamp").value="whatsapp-anuncio";if(t&&!$("#dCont").value)$("#dCont").value=t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");}
+    if(!$("#dNotes").value&&msg.trim())$("#dNotes").value="Primeira mensagem: "+msg.trim().slice(0,300);
   });
   $("#newLead").addEventListener("click",function(){openLead(null)});
   $("#dSave").addEventListener("click",async function(){
