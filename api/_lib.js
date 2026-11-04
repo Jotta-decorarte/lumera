@@ -7,8 +7,10 @@ export const STAGES = ["novo", "conversando", "agendou", "compareceu", "fechou",
 const CAPI_EVENTS = { conversando: "Lead", agendou: "Schedule", fechou: "Purchase" };
 
 /* ---------------- Armazenamento (Upstash Redis via REST) ---------------- */
-const RURL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-const RTOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+// Aceita KV_REST_API_URL, UPSTASH_REDIS_REST_URL ou qualquer prefixo da integração (ex.: STORAGE_KV_REST_API_URL)
+const envEnding = (suffix) => Object.keys(process.env).find((k) => k.endsWith(suffix) && process.env[k]);
+const RURL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL || process.env[envEnding("_REST_API_URL") || ""] || process.env[envEnding("REDIS_REST_URL") || ""];
+const RTOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN || process.env[envEnding("_REST_API_TOKEN") || ""] || process.env[envEnding("REDIS_REST_TOKEN") || ""];
 const mem = globalThis.__lumeraMem || (globalThis.__lumeraMem = { kv: new Map(), z: new Map() });
 
 export const storageMode = () => (RURL && RTOKEN ? "redis" : "memory");
