@@ -408,7 +408,7 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
   $("#dStages").addEventListener("click",function(e){var b=e.target.closest("button");if(b){pendingStage=b.dataset.s;paintStages()}});
   function openLead(l){
     current=l||null;pendingStage=l?null:"conversando";
-    $("#dPasteWrap").classList.toggle("hidden",!!l);$("#dPaste").value="";$("#dPasteInfo").textContent="O CRM encontra o código do paciente e o assunto sozinho.";
+    window.__utm=null;$("#dPasteWrap").classList.toggle("hidden",!!l);$("#dPaste").value="";$("#dPasteInfo").textContent="O CRM encontra o código do paciente e o assunto sozinho.";
     $("#dTitle").textContent=l?(l.name||l.id):"Novo lead";
     $("#dName").value=l&&l.name||"";$("#dPhone").value=l&&l.phone?fmtPhone(l.phone):"";
     $("#dTema").value=l&&l.tema||"AVALIAÇÃO";$("#dValue").value=l&&l.value?String(l.value).replace(".",","):"";
@@ -437,7 +437,13 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
       $("#dPasteInfo").textContent="Código "+m[1]+" não encontrado. Vou criar um paciente novo.";}
     var t=/IMPLANTE/.test(up)?"IMPLANTE":/CLAREAMENTO|CLAREAR/.test(up)?"CLAREAMENTO":/PREVEN[CÇ][AÃ]O|LIMPEZA|REVIS[AÃ]O/.test(up)?"PREVENÇÃO":"";
     if(t){$("#dTema").value=t;if(!m)$("#dPasteInfo").textContent="Assunto detectado: "+t+". Preencha nome e WhatsApp e salve."}
-    if(/VI O AN[ÚU]NCIO/.test(up)&&!m){if(!$("#dCamp").value)$("#dCamp").value="whatsapp-anuncio";if(t&&!$("#dCont").value)$("#dCont").value=t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");}
+    /* Código de rastreamento do anúncio de WhatsApp: #W03 = campanha WhatsApp, vídeo 03; #R = remarketing; #A = reconhecimento */
+    var tag=up.match(/#([WRA])(\d{2})/);
+    if(tag&&!m){var CAMP={W:"whatsapp-mensagens",R:"remarketing",A:"reconhecimento"},VID={"01":"video01-clareamento","02":"video02-prevencao","03":"video03-implante","04":"video04-avaliacao"};
+      $("#dCamp").value=CAMP[tag[1]];$("#dCont").value=VID[tag[2]]||("video"+tag[2]);window.__utm={utm_source:"facebook",utm_medium:"whatsapp-ads"};
+      if(!t){var TV={"01":"CLAREAMENTO","02":"PREVENÇÃO","03":"IMPLANTE","04":"AVALIAÇÃO"};if(TV[tag[2]])$("#dTema").value=TV[tag[2]]}
+      $("#dPasteInfo").textContent="Anúncio identificado: "+CAMP[tag[1]]+" · "+$("#dCont").value+". Preencha nome e WhatsApp e salve.";}
+    else if(/VI O AN[ÚU]NCIO/.test(up)&&!m){if(!$("#dCamp").value)$("#dCamp").value="whatsapp-anuncio";if(t&&!$("#dCont").value)$("#dCont").value=t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");}
     if(!$("#dNotes").value&&msg.trim())$("#dNotes").value="Primeira mensagem: "+msg.trim().slice(0,300);
   });
   $("#newLead").addEventListener("click",function(){openLead(null)});
@@ -448,7 +454,8 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
     var st=pendingStage||(current&&current.stage)||"novo";
     if(st==="fechou"&&!p.value&&!(current&&current.value)){toast("Informe o valor fechado");$("#dValue").focus();return}
     if(!current||st!==current.stage)p.stage=st;
-    if(!current&&!p.utm_campaign){p.utm_source="whatsapp";p.utm_medium="direto"}
+    if(!current&&window.__utm){p.utm_source=window.__utm.utm_source;p.utm_medium=window.__utm.utm_medium}
+    else if(!current&&!p.utm_campaign){p.utm_source="whatsapp";p.utm_medium="direto"}
     try{
       if(current){var r=await api("/api/leads?id="+encodeURIComponent(current.id),{method:"PATCH",body:JSON.stringify(p)});Object.assign(current,r.lead)}
       else{var r2=await api("/api/leads",{method:"POST",body:JSON.stringify(p)});data.leads.unshift(r2.lead)}
