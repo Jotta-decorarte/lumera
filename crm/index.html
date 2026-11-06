@@ -232,7 +232,7 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
       <div class="field"><label for="dPhone">WhatsApp</label><input id="dPhone" inputmode="tel" placeholder="(21) 9…"></div>
     </div>
     <div class="row2">
-      <div class="field"><label for="dTema">Assunto</label><select id="dTema"><option>AVALIAÇÃO</option><option>IMPLANTE</option><option>CLAREAMENTO</option><option>PREVENÇÃO</option><option>DÚVIDA</option></select></div>
+      <div class="field"><label for="dTema">Assunto</label><select id="dTema"><option>AVALIAÇÃO</option><option>IMPLANTE</option><option>CLAREAMENTO</option><option>PREVENÇÃO</option><option>EXTRAÇÃO</option><option>DÚVIDA</option></select></div>
       <div class="field"><label for="dValue">Valor fechado (R$)</label><input id="dValue" inputmode="decimal" placeholder="0,00"></div>
     </div>
     <div class="row2" id="dUtmEdit">
@@ -435,13 +435,13 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
     if(m){var found=data.leads.find(function(x){return x.id===m[1]});
       if(found){openLead(found);if(found.stage==="novo"){pendingStage="conversando";paintStages()}toast("Paciente encontrado: veio de "+(found.utm_campaign||found.origin||"site"));$("#dName").focus();return}
       $("#dPasteInfo").textContent="Código "+m[1]+" não encontrado. Vou criar um paciente novo.";}
-    var t=/IMPLANTE/.test(up)?"IMPLANTE":/CLAREAMENTO|CLAREAR/.test(up)?"CLAREAMENTO":/PREVEN[CÇ][AÃ]O|LIMPEZA|REVIS[AÃ]O/.test(up)?"PREVENÇÃO":"";
+    var t=/IMPLANTE/.test(up)?"IMPLANTE":/EXTRA[CÇ][AÃ]O|SISO|DOR DE DENTE/.test(up)?"EXTRAÇÃO":/CLAREAMENTO|CLAREAR/.test(up)?"CLAREAMENTO":/PREVEN[CÇ][AÃ]O|LIMPEZA|REVIS[AÃ]O/.test(up)?"PREVENÇÃO":"";
     if(t){$("#dTema").value=t;if(!m)$("#dPasteInfo").textContent="Assunto detectado: "+t+". Preencha nome e WhatsApp e salve."}
     /* Código de rastreamento do anúncio de WhatsApp: #W03 = campanha WhatsApp, vídeo 03; #R = remarketing; #A = reconhecimento */
     var tag=up.match(/#([WRA])(\d{2})/);
-    if(tag&&!m){var CAMP={W:"whatsapp-mensagens",R:"remarketing",A:"reconhecimento"},VID={"01":"video01-clareamento","02":"video02-prevencao","03":"video03-implante","04":"video04-avaliacao"};
+    if(tag&&!m){var CAMP={W:"whatsapp-mensagens",R:"remarketing",A:"reconhecimento"},VID={"01":"video01-clareamento","02":"video02-prevencao","03":"video03-implante","04":"video04-extracao"};
       $("#dCamp").value=CAMP[tag[1]];$("#dCont").value=VID[tag[2]]||("video"+tag[2]);window.__utm={utm_source:"facebook",utm_medium:"whatsapp-ads"};
-      if(!t){var TV={"01":"CLAREAMENTO","02":"PREVENÇÃO","03":"IMPLANTE","04":"AVALIAÇÃO"};if(TV[tag[2]])$("#dTema").value=TV[tag[2]]}
+      if(!t){var TV={"01":"CLAREAMENTO","02":"PREVENÇÃO","03":"IMPLANTE","04":"EXTRAÇÃO"};if(TV[tag[2]])$("#dTema").value=TV[tag[2]]}
       $("#dPasteInfo").textContent="Anúncio identificado: "+CAMP[tag[1]]+" · "+$("#dCont").value+". Preencha nome e WhatsApp e salve.";}
     else if(/VI O AN[ÚU]NCIO/.test(up)&&!m){if(!$("#dCamp").value)$("#dCamp").value="whatsapp-anuncio";if(t&&!$("#dCont").value)$("#dCont").value=t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");}
     if(!$("#dNotes").value&&msg.trim())$("#dNotes").value="Primeira mensagem: "+msg.trim().slice(0,300);
