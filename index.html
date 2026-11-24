@@ -425,7 +425,7 @@ footer{background:var(--abyss);color:rgba(244,240,233,.6);padding:56px 0 calc(11
 <footer>
   <div class="wrap foot">
     <div><img src="/assets/logo.png" alt="Luméra Odontologia"><p class="rt">Responsável técnica: Dra. Michele Pereira · CRO-RJ 60213 · EPAO 10291</p></div>
-    <div><p>Estrada de Adrianópolis, 2212 · Monte Castelo<br>Nova Iguaçu · RJ · CEP 26050-000</p><p>WhatsApp (21) 97680-3200</p></div>
+    <div><p>Estrada de Adrianópolis, 2212 · Monte Castelo<br>Nova Iguaçu · RJ · CEP 26050-000</p><p>WhatsApp (21) 97680-3200</p><p><a href="/privacidade" style="color:inherit">Privacidade</a> · <a href="/termos" style="color:inherit">Termos</a></p></div>
   </div>
 </footer>
 
@@ -461,6 +461,8 @@ footer{background:var(--abyss);color:rgba(244,240,233,.6);padding:56px 0 calc(11
   var cfg=window.LUMERA||{}, phone=cfg.WHATSAPP||"5521976803200";
   var q=new URLSearchParams(location.search);
   var KEYS=["utm_source","utm_medium","utm_campaign","utm_content","utm_term","fbclid","campaign_id","adset_id","ad_id"];
+  /* Anúncios criados pelo Meta com o padrão dele mandam utm_id = ID da campanha */
+  if(q.get("utm_id")&&!q.get("campaign_id"))q.set("campaign_id",q.get("utm_id"));
   var DAY=864e5, LAST_TTL=30*DAY, FIRST_TTL=90*DAY;
   function load(k){try{return JSON.parse(localStorage.getItem(k)||"null")}catch(e){return null}}
   function store(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
