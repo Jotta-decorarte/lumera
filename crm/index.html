@@ -344,8 +344,8 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
     var q=$("#q").value.trim().toLowerCase(), c=$("#fCamp").value, t=$("#fTema").value, d=Number($("#fPer").value), k=$("#fKind").value, tst=$("#fTest").checked;
     return data.leads.filter(function(l){
       if(l.test&&!tst)return false;
-      if(k==="clique"&&l.kind!=="clique")return false;
-      if(k==="conversa"&&l.kind==="clique")return false;
+      if(k==="clique"&&!isClick(l))return false;
+      if(k==="conversa"&&isClick(l))return false;
       if(d&&Date.now()-Date.parse(l.createdAt)>d*864e5)return false;
       if(c&&(l.utm_campaign||"(sem campanha)")!==c)return false;
       if(t&&l.tema!==t)return false;
@@ -354,6 +354,8 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
     });
   }
 
+  /* Leads antigos (antes de 24/11) não têm "kind": do site e parados em Novo contam como clique */
+  function isClick(l){return l.kind?isClick(l):(l.origin==="site"&&(l.stage==="novo"||!l.stage))}
   function fillSelect(sel,vals){var cur=sel.value;var first=sel.options[0].outerHTML;sel.innerHTML=first+vals.map(function(v){return "<option>"+esc(v)+"</option>"}).join("");sel.value=cur}
 
   function render(){
@@ -371,7 +373,7 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
     var L=filtered(), by={};STAGES.forEach(function(s){by[s[0]]=[]});L.forEach(function(l){(by[l.stage]||by.novo).push(l)});
     var fech=by.fechou.reduce(function(a,l){return a+(Number(l.value)||0)},0);
     var k=STAGES.map(function(s){return "<div class='kpi'><small><i style='background:var(--"+s[0]+")'></i>"+s[1]+"</small><b class='mono'>"+by[s[0]].length+"</b></div>"}).join("");
-    var conversas=L.filter(function(l){return l.kind!=="clique"}), cliques=L.length-conversas.length;
+    var conversas=L.filter(function(l){return !isClick(l)}), cliques=L.length-conversas.length;
     var conv=conversas.length?Math.round(by.fechou.length/conversas.length*100):0;
     var rep=L.filter(function(l){return l.replyMinutes!=null}), avg=rep.length?Math.round(rep.reduce(function(a,l){return a+l.replyMinutes},0)/rep.length):null;
     k="<div class='kpi'><small>Cliques no site</small><b class='mono'>"+cliques+"</b><span>sem mensagem confirmada</span></div><div class='kpi'><small>Conversas</small><b class='mono'>"+conversas.length+"</b><span>mensagem recebida</span></div>"+k;
@@ -382,7 +384,7 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
     $("#board").innerHTML=STAGES.map(function(s){
       var items=by[s[0]];
       return "<div class='col' data-stage='"+s[0]+"'><header><i style='background:var(--"+s[0]+")'></i>"+s[1]+"<span class='mono'>"+items.length+"</span></header><div class='list'>"+
-        (items.length?items.map(function(l){return "<div class='lead"+(l.kind==="clique"?" clique":"")+"' draggable='true' data-id='"+esc(l.id)+"' style='--c:var(--"+s[0]+")'><div class='n'>"+esc(l.name||fmtPhone(l.phone)||l.id)+"</div><div class='m'>"+(l.kind==="clique"?"<span class='chip k'>só clique</span>":"")+(l.test?"<span class='chip t'>teste</span>":"")+(l.tema?"<span class='chip g'>"+esc(l.tema)+"</span>":"")+(l.utm_campaign?"<span class='chip'>"+esc(l.utm_campaign)+"</span>":l.wa_headline?"<span class='chip'>"+esc(l.wa_headline)+"</span>":"<span class='chip'>"+esc(l.origin||"")+"</span>")+"<span class='mono'>"+ago(l.createdAt)+"</span>"+(l.value?"<span class='mono'>"+money(l.value)+"</span>":"")+"</div></div>"}).join(""):"<div class='empty'>Nenhum lead</div>")+
+        (items.length?items.map(function(l){return "<div class='lead"+(isClick(l)?" clique":"")+"' draggable='true' data-id='"+esc(l.id)+"' style='--c:var(--"+s[0]+")'><div class='n'>"+esc(l.name||fmtPhone(l.phone)||l.id)+"</div><div class='m'>"+(isClick(l)?"<span class='chip k'>só clique</span>":"")+(l.test?"<span class='chip t'>teste</span>":"")+(l.tema?"<span class='chip g'>"+esc(l.tema)+"</span>":"")+(l.utm_campaign?"<span class='chip'>"+esc(l.utm_campaign)+"</span>":l.wa_headline?"<span class='chip'>"+esc(l.wa_headline)+"</span>":"<span class='chip'>"+esc(l.origin||"")+"</span>")+"<span class='mono'>"+ago(l.createdAt)+"</span>"+(l.value?"<span class='mono'>"+money(l.value)+"</span>":"")+"</div></div>"}).join(""):"<div class='empty'>Nenhum lead</div>")+
         "</div></div>";
     }).join("");
     renderCamp();renderIntegration();
@@ -390,7 +392,7 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
 
   function renderCamp(){
     var g=$("#groupBy").value, rows={};
-    filtered().forEach(function(l){var k=l[g]||"(vazio)";var r=rows[k]||(rows[k]={n:0,cv:0,conversando:0,agendou:0,compareceu:0,fechou:0,v:0});r.n++;if(l.kind!=="clique")r.cv++;
+    filtered().forEach(function(l){var k=l[g]||"(vazio)";var r=rows[k]||(rows[k]={n:0,cv:0,conversando:0,agendou:0,compareceu:0,fechou:0,v:0});r.n++;if(!isClick(l))r.cv++;
       var reach={conversando:["conversando","agendou","compareceu","fechou"],agendou:["agendou","compareceu","fechou"],compareceu:["compareceu","fechou"],fechou:["fechou"]};
       Object.keys(reach).forEach(function(s){if(reach[s].includes(l.stage))r[s]++});if(l.stage==="fechou")r.v+=Number(l.value)||0});
     var keys=Object.keys(rows).sort(function(a,b){return rows[b].n-rows[a].n});
@@ -448,7 +450,7 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
     $("#dTema").value=l&&l.tema||"AVALIAÇÃO";$("#dValue").value=l&&l.value?String(l.value).replace(".",","):"";
     window.__confirm=false;$("#dTest").checked=!!(l&&l.test);
     $("#dCamp").value=l&&l.utm_campaign||"";$("#dCont").value=l&&l.utm_content||"";$("#dNotes").value=l&&l.notes||"";
-    $("#dInfo").innerHTML=l?[["Código",l.id],["Situação",l.kind==="clique"?"Só clicou no site (mensagem não confirmada)":"Conversa confirmada"+(l.conversaAt?" em "+new Date(l.conversaAt).toLocaleString("pt-BR"):"")],["Origem",l.origin],["Criado",new Date(l.createdAt).toLocaleString("pt-BR")],["1ª resposta",l.replyMinutes!=null?l.replyMinutes+" min":""],["Cliques",l.clicks>1?l.clicks:""],["utm_source",l.utm_source],["utm_medium",l.utm_medium],["utm_term",l.utm_term],["Anúncio (ID)",l.ad_id],["Conjunto (ID)",l.adset_id],["Campanha (ID)",l.campaign_id],["Título do anúncio",l.wa_headline],["Veio de anúncio de WhatsApp",l.ctwa_clid?"sim":""],["1º contato",l.first?[l.first.utm_campaign||l.first.utm_source||(l.first.fbclid?"Meta (sem UTM)":"direto"),l.first.at?new Date(l.first.at).toLocaleDateString("pt-BR"):""].filter(Boolean).join(" · "):""],["Voltou sem anúncio",l.returning?"sim (origem anterior mantida)":""],["Página",l.landing],["fbclid",l.fbclid?"sim":""],["Cookie Meta",l.fbc||l.fbp?"sim":""]].filter(function(x){return x[1]}).map(function(x){return "<dt>"+x[0]+"</dt><dd>"+esc(x[1])+"</dd>"}).join(""):"";
+    $("#dInfo").innerHTML=l?[["Código",l.id],["Situação",isClick(l)?"Só clicou no site (mensagem não confirmada)":"Conversa confirmada"+(l.conversaAt?" em "+new Date(l.conversaAt).toLocaleString("pt-BR"):"")],["Origem",l.origin],["Criado",new Date(l.createdAt).toLocaleString("pt-BR")],["1ª resposta",l.replyMinutes!=null?l.replyMinutes+" min":""],["Cliques",l.clicks>1?l.clicks:""],["utm_source",l.utm_source],["utm_medium",l.utm_medium],["utm_term",l.utm_term],["Anúncio (ID)",l.ad_id],["Conjunto (ID)",l.adset_id],["Campanha (ID)",l.campaign_id],["Título do anúncio",l.wa_headline],["Veio de anúncio de WhatsApp",l.ctwa_clid?"sim":""],["1º contato",l.first?[l.first.utm_campaign||l.first.utm_source||(l.first.fbclid?"Meta (sem UTM)":"direto"),l.first.at?new Date(l.first.at).toLocaleDateString("pt-BR"):""].filter(Boolean).join(" · "):""],["Voltou sem anúncio",l.returning?"sim (origem anterior mantida)":""],["Página",l.landing],["fbclid",l.fbclid?"sim":""],["Cookie Meta",l.fbc||l.fbp?"sim":""]].filter(function(x){return x[1]}).map(function(x){return "<dt>"+x[0]+"</dt><dd>"+esc(x[1])+"</dd>"}).join(""):"";
     $("#dHist").innerHTML=l&&l.history&&l.history.length?l.history.slice().reverse().map(function(h){var capi=h.capi?(h.capi.ok?" · enviado ao Meta ("+h.capi.event+")":h.capi.skipped?" · Meta: "+h.capi.skipped:" · Meta falhou: "+esc(h.capi.error)):"";return "<div><b>"+(h.stage?LABEL[h.stage]||h.stage:"Edição")+"</b> · "+new Date(h.at).toLocaleString("pt-BR")+" · "+esc(h.by||"")+capi+(h.note?"<br>"+esc(h.note):"")+"</div>"}).join(""):"<div>Sem histórico ainda.</div>";
     $("#dDel").classList.toggle("hidden",!l);$("#dDel").textContent="Excluir";
     var ph=l&&l.phone;$("#dWa").classList.toggle("hidden",!ph);if(ph)$("#dWa").href="https://wa.me/"+ph;
