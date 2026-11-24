@@ -65,7 +65,9 @@ async function inbound(m, profileName) {
   const phone = normPhone(m.from);
   const text = textOf(m);
   const parsed = parseMessage(text);
-  const now = new Date((Number(m.timestamp) || Date.now() / 1000) * 1000).toISOString();
+  // Usa a hora da mensagem só se for recente; testes do painel da Meta vêm com data antiga (2017)
+  const ts = Number(m.timestamp) * 1000;
+  const now = new Date(ts && Math.abs(Date.now() - ts) < 2 * 86400e3 ? ts : Date.now()).toISOString();
 
   // Veio de anúncio de clique para WhatsApp: o Meta informa o anúncio
   const ref = m.referral || {};
@@ -110,7 +112,8 @@ async function echo(m) {
   if (!m?.id || !(await once("waecho:" + m.id))) return false;
   const lead = await findLead({ phone: normPhone(m.to) });
   if (!lead) return false;
-  const at = new Date((Number(m.timestamp) || Date.now() / 1000) * 1000).toISOString();
+  const ets = Number(m.timestamp) * 1000;
+  const at = new Date(ets && Math.abs(Date.now() - ets) < 2 * 86400e3 ? ets : Date.now()).toISOString();
   const changes = {};
   if (!lead.firstReplyAt) {
     lead.firstReplyAt = at;

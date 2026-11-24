@@ -45,6 +45,14 @@ export default async function handler(req, res) {
       delete saved.ip; delete saved.ua;
       return send(res, 200, { ok: true, lead: saved });
     }
+    if (req.method === "DELETE" && req.query?.all === "1") {
+      // Apagar todos: só agência, com confirmação digitada
+      if (me.role !== "agencia") return send(res, 403, { error: "Só a agência" });
+      if (body(req).confirm !== "APAGAR TUDO") return send(res, 400, { error: "Confirmação inválida" });
+      const all = await listLeads(10000);
+      for (const l of all) await deleteLead(l.id);
+      return send(res, 200, { ok: true, deleted: all.length });
+    }
     if (req.method === "DELETE") {
       const id = String(req.query?.id || "");
       if (!(await getLead(id))) return send(res, 404, { error: "Lead não encontrado" });

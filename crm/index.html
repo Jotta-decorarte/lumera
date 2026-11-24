@@ -236,6 +236,12 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
         <p><a href="/crm/agencia">Guia da agência: ligar campanhas, Pixel e chaves</a></p>
       </div>
       <div class="cardbox">
+        <h2>Zerar o CRM</h2>
+        <p>Baixa uma cópia de todos os leads (arquivo .json no seu computador) e depois apaga todos do CRM. Não tem como desfazer pelo CRM.</p>
+        <div class="field"><label for="wipeTxt">Digite APAGAR TUDO para liberar</label><input id="wipeTxt" autocomplete="off"></div>
+        <button class="btn" id="wipeBtn" type="button" disabled style="border-color:#D2737A;color:#F2A3A8">Baixar cópia e apagar todos</button>
+      </div>
+      <div class="cardbox">
         <h2>Status</h2>
         <dl class="info" id="status"></dl>
       </div>
@@ -328,6 +334,15 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
     $("#userList").innerHTML=r.users.map(function(u){return "<div><b>"+esc(u.user)+"</b> · "+(u.role==="agencia"?"Agência":"Clínica")+(u.updatedAt?" · senha alterada em "+new Date(u.updatedAt).toLocaleDateString("pt-BR"):"")+"</div>"}).join("")||"<div>Nenhum usuário.</div>"}catch(e){}}
   async function loadWa(){try{var w=await api("/api/wa-connect");$("#waHook").value=w.webhookUrl;$("#waVerify").value=w.verifyToken;
     $("#waState").innerHTML=w.connected?"<b>Conectado</b> desde "+new Date(w.connectedAt).toLocaleString("pt-BR")+". Mensagens entram sozinhas no CRM.":(w.appConfigured?"App do Meta configurado. Falta conectar o número.":"Falta criar o app no Meta e colocar <code>WA_APP_ID</code>, <code>WA_APP_SECRET</code> e <code>WA_CONFIG_ID</code> na Vercel.")}catch(e){$("#waState").textContent="Não foi possível ler a conexão."}}
+  $("#wipeTxt").addEventListener("input",function(){$("#wipeBtn").disabled=$("#wipeTxt").value.trim()!=="APAGAR TUDO"});
+  $("#wipeBtn").addEventListener("click",async function(){
+    try{var fresh=await api("/api/leads");
+      var blob=new Blob([JSON.stringify(fresh.leads,null,2)],{type:"application/json"});var a=document.createElement("a");
+      a.href=URL.createObjectURL(blob);a.download="backup-leads-"+new Date().toISOString().slice(0,10)+".json";document.body.appendChild(a);a.click();a.remove();
+      var r=await api("/api/leads?all=1",{method:"DELETE",body:JSON.stringify({confirm:"APAGAR TUDO"})});
+      $("#wipeTxt").value="";$("#wipeBtn").disabled=true;toast(r.deleted+" leads apagados. Cópia baixada.");load(true);
+    }catch(e){toast(e.message)}
+  });
   $("#uSave").addEventListener("click",async function(){
     try{await api("/api/auth",{method:"POST",body:JSON.stringify({action:"set-user",user:$("#uUser").value.trim(),role:$("#uRole").value,password:$("#uPass").value})});
       $("#uPass").value="";toast("Usuário salvo");loadUsers();
