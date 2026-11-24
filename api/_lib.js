@@ -5,6 +5,7 @@ export const STAGES = ["novo", "conversando", "agendou", "compareceu", "fechou",
 
 // Etapa do CRM -> evento enviado ao Meta (API de Conversões)
 const CAPI_EVENTS = { conversando: "Lead", agendou: "Schedule", fechou: "Purchase" };
+export const GRAPH = process.env.META_GRAPH_VERSION || "v23.0";
 
 /* ---------------- Armazenamento (Upstash Redis via REST) ---------------- */
 // Aceita KV_REST_API_URL, UPSTASH_REDIS_REST_URL ou qualquer prefixo da integração (ex.: STORAGE_KV_REST_API_URL)
@@ -34,7 +35,7 @@ function memCmd([op, ...a]) {
   // Só para testes locais: some quando a função reinicia.
   switch (op) {
     case "GET": return mem.kv.get(a[0]) ?? null;
-    case "SET": if (a[2] === "NX" && mem.kv.has(a[0])) return null; mem.kv.set(a[0], a[1]); return "OK";
+    case "SET": if (a.slice(2).includes("NX") && mem.kv.has(a[0])) return null; mem.kv.set(a[0], a[1]); return "OK";
     case "MGET": return a.map((k) => mem.kv.get(k) ?? null);
     case "ZADD": mem.z.set(a[2], Number(a[1])); return 1;
     case "DEL": return mem.kv.delete(a[0]) ? 1 : 0;
@@ -144,13 +145,56 @@ export function newId() {
 export function pickFields(src) {
   const o = {};
   for (const k of UTM) if (src[k]) o[k] = clip(src[k]);
-  for (const k of ["name", "tema", "source", "notes", "landing", "referrer", "fbclid", "fbc", "fbp", "ad_id", "adset_id", "campaign_id"]) if (src[k]) o[k] = clip(src[k], k === "notes" ? 2000 : 300);
+  for (const k of ["name", "tema", "source", "notes", "landing", "referrer", "fbclid", "fbc", "fbp", "ad_id", "adset_id", "campaign_id", "ctwa_clid", "wa_headline"]) if (src[k]) o[k] = clip(src[k], k === "notes" ? 2000 : 300);
   if (src.phone) o.phone = normPhone(src.phone);
   if (src.email) o.email = clip(String(src.email).toLowerCase().trim());
   if (src.value != null && src.value !== "" && !isNaN(Number(src.value))) o.value = Number(src.value);
   if (src.stage && STAGES.includes(src.stage)) o.stage = src.stage;
+  if (typeof src.test === "boolean") o.test = src.test;
   return o;
 }
+
+// Origem (primeiro e último toque) vinda do site: só campos conhecidos, tamanho limitado
+const TOUCH = [...UTM, "fbclid", "campaign_id", "adset_id", "ad_id", "landing", "referrer", "at"];
+export function pickTouch(t) {
+  if (!t || typeof t !== "object") return undefined;
+  const o = {};
+  for (const k of TOUCH) if (t[k] != null && t[k] !== "") o[k] = k === "at" ? Number(t[k]) || undefined : clip(t[k], 300);
+  return Object.keys(o).length ? o : undefined;
+}
+
+// Acha o código do site (cód. L…) ou o código de anúncio (#W03, #R01, #A02) numa mensagem
+const AD_CAMP = { W: "whatsapp-mensagens", R: "remarketing", A: "reconhecimento" };
+const AD_VID = { "01": "video01-clareamento", "02": "video02-prevencao", "03": "video03-implante", "04": "video04-extracao" };
+const AD_TEMA = { "01": "CLAREAMENTO", "02": "PREVENÇÃO", "03": "IMPLANTE", "04": "EXTRAÇÃO" };
+export function parseMessage(text) {
+  const up = String(text || "").toUpperCase();
+  const out = {};
+  const code = up.match(/C[ÓO]D\.?\s*(L[A-Z0-9]{5,12})/) || up.match(/\b(L[A-Z0-9]{8,12})\b/);
+  if (code) out.code = code[1];
+  const tag = up.match(/#([WRA])(\d{2})/);
+  if (tag) { out.utm_campaign = AD_CAMP[tag[1]]; out.utm_content = AD_VID[tag[2]] || "video" + tag[2]; out.utm_source = "facebook"; out.utm_medium = "whatsapp-ads"; if (AD_TEMA[tag[2]]) out.tema = AD_TEMA[tag[2]]; }
+  const t = /IMPLANTE/.test(up) ? "IMPLANTE" : /EXTRA[CÇ][AÃ]O|SISO|DOR DE DENTE/.test(up) ? "EXTRAÇÃO" : /CLAREAMENTO|CLAREAR/.test(up) ? "CLAREAMENTO" : /PREVEN[CÇ][AÃ]O|LIMPEZA|REVIS[AÃ]O/.test(up) ? "PREVENÇÃO" : "";
+  if (t && !out.tema) out.tema = t;
+  return out;
+}
+
+// Telefone para comparação: o WhatsApp às vezes entrega celular do Brasil sem o 9 (55 21 7680-3200)
+export function phoneKey(p) {
+  const d = String(p || "").replace(/\D/g, "");
+  return d.length === 13 && d.startsWith("55") && d[4] === "9" ? d.slice(0, 4) + d.slice(5) : d;
+}
+
+// Acha lead pelo código ou pelo telefone (o mais recente com esse telefone)
+export async function findLead({ code, phone }) {
+  let lead = code ? await getLead(code) : null;
+  if (!lead && phone) { const k = phoneKey(phone); lead = (await listLeads()).find((l) => l.phone && phoneKey(l.phone) === k) || null; }
+  return lead;
+}
+
+// Configurações guardadas no banco (ex.: conexão do WhatsApp)
+export async function getJSON(key) { const [v] = await redis([["GET", key]]); return v ? JSON.parse(v) : null; }
+export async function setJSON(key, val) { await redis([["SET", key, JSON.stringify(val)]]); }
 
 /* ---------------- Meta API de Conversões ---------------- */
 const sha = (v) => (v ? crypto.createHash("sha256").update(String(v).trim().toLowerCase()).digest("hex") : undefined);
@@ -160,35 +204,38 @@ export async function sendCapi(lead, stage) {
   const token = process.env.META_CAPI_TOKEN;
   const pixel = process.env.META_PIXEL_ID || "1127167810011936";
   if (!event_name) return null;
+  if (lead.test) return { skipped: "lead de teste (não enviado)" };
   if (!token) return { skipped: "META_CAPI_TOKEN não configurado" };
 
+  // Conversa que veio de anúncio de WhatsApp: evento de mensagem (atribui direto ao anúncio)
+  const viaWa = !!(lead.ctwa_clid && process.env.WA_WABA_ID);
   const user_data = {
     external_id: [sha(lead.id)],
     ph: lead.phone ? [sha(lead.phone)] : undefined,
     em: lead.email ? [sha(lead.email)] : undefined,
     fn: lead.name ? [sha(lead.name.split(" ")[0])] : undefined,
     ct: [sha("novaiguacu")], st: [sha("rj")], country: [sha("br")],
-    fbc: lead.fbc, fbp: lead.fbp,
-    client_ip_address: lead.ip || undefined,
-    client_user_agent: lead.ua || undefined,
+    ...(viaWa
+      ? { ctwa_clid: lead.ctwa_clid, whatsapp_business_account_id: process.env.WA_WABA_ID }
+      : { fbc: lead.fbc, fbp: lead.fbp, client_ip_address: lead.ip || undefined, client_user_agent: lead.ua || undefined }),
   };
+  // Não enviamos assunto/tratamento, anúncio nem anotações: são dados de saúde e a Meta não deve recebê-los.
   const ev = {
     event_name,
     event_time: Math.floor(Date.now() / 1000),
     event_id: `${lead.id}-${stage}`,
-    action_source: lead.fbp || lead.fbc ? "website" : "system_generated",
-    event_source_url: lead.landing || undefined,
+    action_source: viaWa ? "business_messaging" : lead.fbp || lead.fbc ? "website" : "system_generated",
+    ...(viaWa ? { messaging_channel: "whatsapp" } : { event_source_url: lead.landing || undefined }),
     user_data,
     custom_data: {
-      lead_code: lead.id, tema: lead.tema, crm_stage: stage,
-      utm_campaign: lead.utm_campaign, utm_content: lead.utm_content,
+      lead_code: lead.id,
       ...(event_name === "Purchase" ? { currency: "BRL", value: Number(lead.value) || 0 } : {}),
     },
   };
   const payload = { data: [ev] };
   if (process.env.META_TEST_EVENT_CODE) payload.test_event_code = process.env.META_TEST_EVENT_CODE;
   try {
-    const r = await fetch(`https://graph.facebook.com/v21.0/${pixel}/events?access_token=${encodeURIComponent(token)}`, {
+    const r = await fetch(`https://graph.facebook.com/${GRAPH}/${pixel}/events?access_token=${encodeURIComponent(token)}`, {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
     });
     const j = await r.json().catch(() => ({}));
@@ -196,6 +243,22 @@ export async function sendCapi(lead, stage) {
   } catch (e) {
     return { ok: false, event: event_name, error: String(e.message || e) };
   }
+}
+
+// Processa um evento só uma vez (reenvios do Meta/ferramentas chegam repetidos). true = primeira vez.
+export async function once(key, ttlSec = 7 * 86400) {
+  const [ok] = await redis([["SET", "once:" + key, "1", "NX", "EX", String(ttlSec)]]);
+  return !!ok;
+}
+
+// Marca que a mensagem do paciente chegou de verdade (clique virou conversa)
+export async function confirmConversation(lead, by) {
+  if (lead.kind === "conversa") return false;
+  lead.kind = "conversa";
+  lead.conversaAt = new Date().toISOString();
+  lead.history = lead.history || [];
+  lead.history.push({ at: lead.conversaAt, by, note: "Mensagem recebida: conversa confirmada" });
+  return true;
 }
 
 // Aplica mudanças num lead, registra histórico e dispara CAPI quando a etapa avança

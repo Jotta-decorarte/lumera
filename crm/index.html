@@ -81,6 +81,11 @@ textarea{min-height:90px;resize:vertical}
 .lead .m{color:var(--muted);font-size:.8rem;display:flex;flex-wrap:wrap;gap:6px}
 .chip{display:inline-block;padding:1px 8px;border-radius:999px;background:rgba(255,255,255,.07);font-size:.74rem;color:var(--ivory)}
 .chip.g{background:rgba(229,183,95,.15);color:var(--gold)}
+.chip.k{background:transparent;border:1px dashed rgba(255,255,255,.3);color:var(--muted)}
+.chip.t{background:rgba(210,115,122,.18);color:#F2A3A8}
+.lead.clique{opacity:.7;border-style:dashed}
+.check{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:.88rem;cursor:pointer}
+.check input{width:auto}
 .empty{color:var(--muted);font-size:.85rem;text-align:center;padding:20px 8px}
 
 table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
@@ -163,6 +168,8 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
         <select id="fCamp"><option value="">Todas as campanhas</option></select>
         <select id="fTema"><option value="">Todos os assuntos</option></select>
         <select id="fPer"><option value="0">Todo o período</option><option value="7">Últimos 7 dias</option><option value="30" selected>Últimos 30 dias</option><option value="90">Últimos 90 dias</option></select>
+        <select id="fKind"><option value="">Conversas e cliques</option><option value="conversa">Só conversas confirmadas</option><option value="clique">Só cliques sem conversa</option></select>
+        <label class="check"><input type="checkbox" id="fTest"> Mostrar testes</label>
         <span class="grow"></span>
         <span class="mono" id="updated" style="color:var(--muted)"></span>
       </div>
@@ -171,9 +178,10 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
 
     <div id="tab-campanhas" class="hidden">
       <div class="filters" style="margin-bottom:12px">
-        <select id="groupBy"><option value="utm_campaign">Agrupar por campanha</option><option value="utm_content">Agrupar por anúncio (utm_content)</option><option value="utm_term">Agrupar por conjunto (utm_term)</option><option value="tema">Agrupar por assunto</option><option value="origin">Agrupar por origem</option></select>
+        <select id="groupBy"><option value="utm_campaign">Agrupar por campanha</option><option value="utm_content">Agrupar por anúncio (utm_content)</option><option value="utm_term">Agrupar por conjunto (utm_term)</option><option value="tema">Agrupar por assunto</option><option value="origin">Agrupar por origem</option><option value="ad_id">Agrupar por ID do anúncio</option><option value="wa_headline">Agrupar por título do anúncio de WhatsApp</option></select>
+        <span style="color:var(--muted)">Usa o mesmo período e filtros do Funil. Testes ficam de fora.</span>
       </div>
-      <div class="tablewrap"><table><thead><tr><th>Grupo</th><th class="num">Leads</th><th class="num">Conversando</th><th class="num">Agendou</th><th class="num">Compareceu</th><th class="num">Fechou</th><th class="num">% fechou</th><th class="num">Valor fechado</th></tr></thead><tbody id="campBody"></tbody></table></div>
+      <div class="tablewrap"><table><thead><tr><th>Grupo</th><th class="num">Leads</th><th class="num">Conversas</th><th class="num">Em atendimento</th><th class="num">Agendou</th><th class="num">Compareceu</th><th class="num">Fechou</th><th class="num">% fechou</th><th class="num">Valor fechado</th></tr></thead><tbody id="campBody"></tbody></table></div>
     </div>
 
     <div id="tab-integracao" class="hidden grid2">
@@ -188,7 +196,7 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
         </div>
         <div class="copyrow"><input id="uOut" readonly><button class="btn" data-copy="uOut">Copiar</button></div>
         <p style="margin-top:6px">Parâmetros dinâmicos para colar em <b>Parâmetros de URL</b> no anúncio do Meta (preenche sozinho com os nomes):</p>
-        <div class="copyrow"><input id="metaParams" readonly value="utm_source=facebook&utm_medium=paid&utm_campaign={{campaign.name}}&utm_term={{adset.name}}&utm_content={{ad.name}}"><button class="btn" data-copy="metaParams">Copiar</button></div>
+        <div class="copyrow"><input id="metaParams" readonly value="utm_source=facebook&utm_medium=paid&utm_campaign={{campaign.name}}&utm_term={{adset.name}}&utm_content={{ad.name}}&campaign_id={{campaign.id}}&adset_id={{adset.id}}&ad_id={{ad.id}}"><button class="btn" data-copy="metaParams">Copiar</button></div>
       </div>
       <div class="cardbox">
         <h2>Webhook de entrada</h2>
@@ -196,6 +204,20 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
         <div class="copyrow"><input id="hookUrl" readonly><button class="btn" data-copy="hookUrl">Copiar</button></div>
         <pre id="hookEx"></pre>
         <p>Etapas aceitas em <code>stage</code>: novo, conversando, agendou, compareceu, fechou, perdido. Ao mover para <b>conversando</b>, <b>agendou</b> ou <b>fechou</b>, o CRM envia Lead, Schedule ou Purchase para o Pixel pela API de Conversões.</p>
+      </div>
+      <div class="cardbox">
+        <h2>WhatsApp oficial (API)</h2>
+        <p id="waState">Carregando…</p>
+        <div class="field"><label>URL de retorno (Callback URL)</label><div class="copyrow"><input id="waHook" readonly><button class="btn" data-copy="waHook">Copiar</button></div></div>
+        <div class="field"><label>Token de verificação</label><div class="copyrow"><input id="waVerify" readonly><button class="btn" data-copy="waVerify">Copiar</button></div></div>
+        <p>Campos para assinar no app: <code>messages</code>, <code>smb_message_echoes</code>, <code>history</code>, <code>smb_app_state_sync</code>, <code>account_update</code>.</p>
+        <a class="btn primary" href="/conectar-whatsapp">Conectar o número da clínica</a>
+      </div>
+      <div class="cardbox">
+        <h2>Planilha automática</h2>
+        <p>Cole esta fórmula na célula A1 de uma aba vazia do Google Sheets. Ela se atualiza sozinha (sem telefone, sem testes).</p>
+        <div class="copyrow"><input id="expFormula" readonly><button class="btn" data-copy="expFormula">Copiar</button></div>
+        <div class="copyrow"><input id="expUrl" readonly><button class="btn" data-copy="expUrl">Copiar link</button></div>
       </div>
       <div class="cardbox">
         <h2>Usuários e senhas</h2>
@@ -241,6 +263,7 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
     </div>
     <datalist id="campList"></datalist><datalist id="contList"></datalist>
     <div class="field"><label for="dNotes">Anotações</label><textarea id="dNotes"></textarea></div>
+    <label class="check"><input type="checkbox" id="dTest"> Lead de teste (não entra nos números nem vai para o Meta)</label>
     <dl class="info" id="dInfo"></dl>
     <div><div class="field"><label>Histórico</label></div><div class="hist" id="dHist"></div></div>
   </div>
@@ -281,7 +304,7 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
       if(!isAg&&!$("#tab-integracao").classList.contains("hidden"))document.querySelector('[data-tab="funil"]').click();
       $("#login").classList.add("hidden");$("#app").classList.remove("hidden");
       if(isAg&&location.hash==="#integracao")$("#tabInteg").click();
-      if(isAg)loadUsers();
+      if(isAg){loadUsers();loadWa()}
       render();$("#updated").textContent="Atualizado "+new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
     }catch(e){
       if(e.status===401||e.status===503){me=null;$("#app").classList.add("hidden");$("#login").classList.remove("hidden");if(e.status===503)$("#loginErr").textContent="O CRM ainda não foi configurado na Vercel (CRM_KEY)."}
@@ -301,7 +324,10 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
   $("#logout").addEventListener("click",async function(){try{await api("/api/auth",{method:"POST",body:JSON.stringify({action:"logout"})})}catch(e){}location.href="/crm"});
   async function loadUsers(){try{var r=await api("/api/auth",{method:"POST",body:JSON.stringify({action:"list-users"})});
     if(r.webhookKey){window.__hook=r.webhookKey;$("#hookUrl").value=location.origin+"/api/webhook?key="+r.webhookKey}
+    if(r.exportKey){var u=location.origin+"/api/export.csv?key="+r.exportKey;$("#expUrl").value=u;$("#expFormula").value='=IMPORTDATA("'+u+'")'}
     $("#userList").innerHTML=r.users.map(function(u){return "<div><b>"+esc(u.user)+"</b> · "+(u.role==="agencia"?"Agência":"Clínica")+(u.updatedAt?" · senha alterada em "+new Date(u.updatedAt).toLocaleDateString("pt-BR"):"")+"</div>"}).join("")||"<div>Nenhum usuário.</div>"}catch(e){}}
+  async function loadWa(){try{var w=await api("/api/wa-connect");$("#waHook").value=w.webhookUrl;$("#waVerify").value=w.verifyToken;
+    $("#waState").innerHTML=w.connected?"<b>Conectado</b> desde "+new Date(w.connectedAt).toLocaleString("pt-BR")+". Mensagens entram sozinhas no CRM.":(w.appConfigured?"App do Meta configurado. Falta conectar o número.":"Falta criar o app no Meta e colocar <code>WA_APP_ID</code>, <code>WA_APP_SECRET</code> e <code>WA_CONFIG_ID</code> na Vercel.")}catch(e){$("#waState").textContent="Não foi possível ler a conexão."}}
   $("#uSave").addEventListener("click",async function(){
     try{await api("/api/auth",{method:"POST",body:JSON.stringify({action:"set-user",user:$("#uUser").value.trim(),role:$("#uRole").value,password:$("#uPass").value})});
       $("#uPass").value="";toast("Usuário salvo");loadUsers();
@@ -315,8 +341,11 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
   })});
 
   function filtered(){
-    var q=$("#q").value.trim().toLowerCase(), c=$("#fCamp").value, t=$("#fTema").value, d=Number($("#fPer").value);
+    var q=$("#q").value.trim().toLowerCase(), c=$("#fCamp").value, t=$("#fTema").value, d=Number($("#fPer").value), k=$("#fKind").value, tst=$("#fTest").checked;
     return data.leads.filter(function(l){
+      if(l.test&&!tst)return false;
+      if(k==="clique"&&l.kind!=="clique")return false;
+      if(k==="conversa"&&l.kind==="clique")return false;
       if(d&&Date.now()-Date.parse(l.createdAt)>d*864e5)return false;
       if(c&&(l.utm_campaign||"(sem campanha)")!==c)return false;
       if(t&&l.tema!==t)return false;
@@ -342,14 +371,18 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
     var L=filtered(), by={};STAGES.forEach(function(s){by[s[0]]=[]});L.forEach(function(l){(by[l.stage]||by.novo).push(l)});
     var fech=by.fechou.reduce(function(a,l){return a+(Number(l.value)||0)},0);
     var k=STAGES.map(function(s){return "<div class='kpi'><small><i style='background:var(--"+s[0]+")'></i>"+s[1]+"</small><b class='mono'>"+by[s[0]].length+"</b></div>"}).join("");
-    var conv=L.length?Math.round(by.fechou.length/L.length*100):0;
-    k+="<div class='kpi'><small>Valor fechado</small><b class='mono'>"+money(fech)+"</b><span>"+conv+"% dos leads fecharam</span></div>";
+    var conversas=L.filter(function(l){return l.kind!=="clique"}), cliques=L.length-conversas.length;
+    var conv=conversas.length?Math.round(by.fechou.length/conversas.length*100):0;
+    var rep=L.filter(function(l){return l.replyMinutes!=null}), avg=rep.length?Math.round(rep.reduce(function(a,l){return a+l.replyMinutes},0)/rep.length):null;
+    k="<div class='kpi'><small>Cliques no site</small><b class='mono'>"+cliques+"</b><span>sem mensagem confirmada</span></div><div class='kpi'><small>Conversas</small><b class='mono'>"+conversas.length+"</b><span>mensagem recebida</span></div>"+k;
+    k+="<div class='kpi'><small>Valor fechado</small><b class='mono'>"+money(fech)+"</b><span>"+conv+"% das conversas fecharam</span></div>";
+    if(avg!=null)k+="<div class='kpi'><small>1ª resposta</small><b class='mono'>"+avg+" min</b><span>média ("+rep.length+" conversas)</span></div>";
     $("#kpis").innerHTML=k;
 
     $("#board").innerHTML=STAGES.map(function(s){
       var items=by[s[0]];
       return "<div class='col' data-stage='"+s[0]+"'><header><i style='background:var(--"+s[0]+")'></i>"+s[1]+"<span class='mono'>"+items.length+"</span></header><div class='list'>"+
-        (items.length?items.map(function(l){return "<div class='lead' draggable='true' data-id='"+esc(l.id)+"' style='--c:var(--"+s[0]+")'><div class='n'>"+esc(l.name||fmtPhone(l.phone)||l.id)+"</div><div class='m'>"+(l.tema?"<span class='chip g'>"+esc(l.tema)+"</span>":"")+(l.utm_campaign?"<span class='chip'>"+esc(l.utm_campaign)+"</span>":"<span class='chip'>"+esc(l.origin||"")+"</span>")+"<span class='mono'>"+ago(l.createdAt)+"</span>"+(l.value?"<span class='mono'>"+money(l.value)+"</span>":"")+"</div></div>"}).join(""):"<div class='empty'>Nenhum lead</div>")+
+        (items.length?items.map(function(l){return "<div class='lead"+(l.kind==="clique"?" clique":"")+"' draggable='true' data-id='"+esc(l.id)+"' style='--c:var(--"+s[0]+")'><div class='n'>"+esc(l.name||fmtPhone(l.phone)||l.id)+"</div><div class='m'>"+(l.kind==="clique"?"<span class='chip k'>só clique</span>":"")+(l.test?"<span class='chip t'>teste</span>":"")+(l.tema?"<span class='chip g'>"+esc(l.tema)+"</span>":"")+(l.utm_campaign?"<span class='chip'>"+esc(l.utm_campaign)+"</span>":l.wa_headline?"<span class='chip'>"+esc(l.wa_headline)+"</span>":"<span class='chip'>"+esc(l.origin||"")+"</span>")+"<span class='mono'>"+ago(l.createdAt)+"</span>"+(l.value?"<span class='mono'>"+money(l.value)+"</span>":"")+"</div></div>"}).join(""):"<div class='empty'>Nenhum lead</div>")+
         "</div></div>";
     }).join("");
     renderCamp();renderIntegration();
@@ -357,11 +390,11 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
 
   function renderCamp(){
     var g=$("#groupBy").value, rows={};
-    data.leads.forEach(function(l){var k=l[g]||"(vazio)";var r=rows[k]||(rows[k]={n:0,conversando:0,agendou:0,compareceu:0,fechou:0,v:0});r.n++;
+    filtered().forEach(function(l){var k=l[g]||"(vazio)";var r=rows[k]||(rows[k]={n:0,cv:0,conversando:0,agendou:0,compareceu:0,fechou:0,v:0});r.n++;if(l.kind!=="clique")r.cv++;
       var reach={conversando:["conversando","agendou","compareceu","fechou"],agendou:["agendou","compareceu","fechou"],compareceu:["compareceu","fechou"],fechou:["fechou"]};
       Object.keys(reach).forEach(function(s){if(reach[s].includes(l.stage))r[s]++});if(l.stage==="fechou")r.v+=Number(l.value)||0});
     var keys=Object.keys(rows).sort(function(a,b){return rows[b].n-rows[a].n});
-    $("#campBody").innerHTML=keys.length?keys.map(function(k){var r=rows[k];return "<tr><td>"+esc(k)+"</td><td class='num'>"+r.n+"</td><td class='num'>"+r.conversando+"</td><td class='num'>"+r.agendou+"</td><td class='num'>"+r.compareceu+"</td><td class='num'>"+r.fechou+"</td><td class='num'>"+(r.n?Math.round(r.fechou/r.n*100):0)+"%</td><td class='num'>"+money(r.v)+"</td></tr>"}).join(""):"<tr><td colspan='8' class='empty'>Os leads aparecem aqui assim que chegarem.</td></tr>";
+    $("#campBody").innerHTML=keys.length?keys.map(function(k){var r=rows[k];return "<tr><td>"+esc(k)+"</td><td class='num'>"+r.n+"</td><td class='num'>"+r.cv+"</td><td class='num'>"+r.conversando+"</td><td class='num'>"+r.agendou+"</td><td class='num'>"+r.compareceu+"</td><td class='num'>"+r.fechou+"</td><td class='num'>"+(r.cv?Math.round(r.fechou/r.cv*100):0)+"%</td><td class='num'>"+money(r.v)+"</td></tr>"}).join(""):"<tr><td colspan='9' class='empty'>Os leads aparecem aqui assim que chegarem.</td></tr>";
   }
   $("#groupBy").addEventListener("change",renderCamp);
 
@@ -385,7 +418,8 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
     navigator.clipboard.writeText(el.value).then(function(){toast("Copiado")},function(){el.select();toast("Selecionado: use Ctrl+C")});
   })});
 
-  ["q","fCamp","fTema","fPer"].forEach(function(id){$("#"+id).addEventListener("input",render)});
+  ["q","fCamp","fTema","fPer","fKind","fTest"].forEach(function(id){$("#"+id).addEventListener("input",render)});
+  ["fKind","fTest"].forEach(function(id){$("#"+id).addEventListener("change",render)});
 
   /* Arrastar entre colunas */
   var dragId=null;
@@ -412,8 +446,9 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
     $("#dTitle").textContent=l?(l.name||l.id):"Novo lead";
     $("#dName").value=l&&l.name||"";$("#dPhone").value=l&&l.phone?fmtPhone(l.phone):"";
     $("#dTema").value=l&&l.tema||"AVALIAÇÃO";$("#dValue").value=l&&l.value?String(l.value).replace(".",","):"";
+    window.__confirm=false;$("#dTest").checked=!!(l&&l.test);
     $("#dCamp").value=l&&l.utm_campaign||"";$("#dCont").value=l&&l.utm_content||"";$("#dNotes").value=l&&l.notes||"";
-    $("#dInfo").innerHTML=l?[["Código",l.id],["Origem",l.origin],["Criado",new Date(l.createdAt).toLocaleString("pt-BR")],["utm_source",l.utm_source],["utm_medium",l.utm_medium],["utm_term",l.utm_term],["Página",l.landing],["fbclid",l.fbclid?"sim":""],["Cookie Meta",l.fbc||l.fbp?"sim":""]].filter(function(x){return x[1]}).map(function(x){return "<dt>"+x[0]+"</dt><dd>"+esc(x[1])+"</dd>"}).join(""):"";
+    $("#dInfo").innerHTML=l?[["Código",l.id],["Situação",l.kind==="clique"?"Só clicou no site (mensagem não confirmada)":"Conversa confirmada"+(l.conversaAt?" em "+new Date(l.conversaAt).toLocaleString("pt-BR"):"")],["Origem",l.origin],["Criado",new Date(l.createdAt).toLocaleString("pt-BR")],["1ª resposta",l.replyMinutes!=null?l.replyMinutes+" min":""],["Cliques",l.clicks>1?l.clicks:""],["utm_source",l.utm_source],["utm_medium",l.utm_medium],["utm_term",l.utm_term],["Anúncio (ID)",l.ad_id],["Conjunto (ID)",l.adset_id],["Campanha (ID)",l.campaign_id],["Título do anúncio",l.wa_headline],["Veio de anúncio de WhatsApp",l.ctwa_clid?"sim":""],["1º contato",l.first?[l.first.utm_campaign||l.first.utm_source||(l.first.fbclid?"Meta (sem UTM)":"direto"),l.first.at?new Date(l.first.at).toLocaleDateString("pt-BR"):""].filter(Boolean).join(" · "):""],["Voltou sem anúncio",l.returning?"sim (origem anterior mantida)":""],["Página",l.landing],["fbclid",l.fbclid?"sim":""],["Cookie Meta",l.fbc||l.fbp?"sim":""]].filter(function(x){return x[1]}).map(function(x){return "<dt>"+x[0]+"</dt><dd>"+esc(x[1])+"</dd>"}).join(""):"";
     $("#dHist").innerHTML=l&&l.history&&l.history.length?l.history.slice().reverse().map(function(h){var capi=h.capi?(h.capi.ok?" · enviado ao Meta ("+h.capi.event+")":h.capi.skipped?" · Meta: "+h.capi.skipped:" · Meta falhou: "+esc(h.capi.error)):"";return "<div><b>"+(h.stage?LABEL[h.stage]||h.stage:"Edição")+"</b> · "+new Date(h.at).toLocaleString("pt-BR")+" · "+esc(h.by||"")+capi+(h.note?"<br>"+esc(h.note):"")+"</div>"}).join(""):"<div>Sem histórico ainda.</div>";
     $("#dDel").classList.toggle("hidden",!l);$("#dDel").textContent="Excluir";
     var ph=l&&l.phone;$("#dWa").classList.toggle("hidden",!ph);if(ph)$("#dWa").href="https://wa.me/"+ph;
@@ -433,7 +468,7 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
     var msg=$("#dPaste").value, up=msg.toUpperCase();
     var m=up.match(/C[ÓO]D\.?\s*(L[A-Z0-9]{5,12})/)||up.match(/\b(L[A-Z0-9]{8,12})\b/);
     if(m){var found=data.leads.find(function(x){return x.id===m[1]});
-      if(found){openLead(found);if(found.stage==="novo"){pendingStage="conversando";paintStages()}toast("Paciente encontrado: veio de "+(found.utm_campaign||found.origin||"site"));$("#dName").focus();return}
+      if(found){openLead(found);window.__confirm=true;if(found.stage==="novo"){pendingStage="conversando";paintStages()}toast("Paciente encontrado: veio de "+(found.utm_campaign||found.origin||"site"));$("#dName").focus();return}
       $("#dPasteInfo").textContent="Código "+m[1]+" não encontrado. Vou criar um paciente novo.";}
     var t=/IMPLANTE/.test(up)?"IMPLANTE":/EXTRA[CÇ][AÃ]O|SISO|DOR DE DENTE/.test(up)?"EXTRAÇÃO":/CLAREAMENTO|CLAREAR/.test(up)?"CLAREAMENTO":/PREVEN[CÇ][AÃ]O|LIMPEZA|REVIS[AÃ]O/.test(up)?"PREVENÇÃO":"";
     if(t){$("#dTema").value=t;if(!m)$("#dPasteInfo").textContent="Assunto detectado: "+t+". Preencha nome e WhatsApp e salve."}
@@ -451,6 +486,8 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
     var v=$("#dValue").value.replace(/\./g,"").replace(",",".").trim();
     var p={name:$("#dName").value.trim(),phone:$("#dPhone").value.trim(),tema:$("#dTema").value,notes:$("#dNotes").value,utm_campaign:$("#dCamp").value.trim(),utm_content:$("#dCont").value.trim()};
     if(v)p.value=Number(v);
+    if(!current||$("#dTest").checked!==!!current.test)p.test=$("#dTest").checked;
+    if(current&&window.__confirm)p.confirm=true;
     var st=pendingStage||(current&&current.stage)||"novo";
     if(st==="fechou"&&!p.value&&!(current&&current.value)){toast("Informe o valor fechado");$("#dValue").focus();return}
     if(!current||st!==current.stage)p.stage=st;

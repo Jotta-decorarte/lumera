@@ -460,32 +460,43 @@ footer{background:var(--abyss);color:rgba(244,240,233,.6);padding:56px 0 calc(11
   /* ---------- Rastreamento ---------- */
   var cfg=window.LUMERA||{}, phone=cfg.WHATSAPP||"5521976803200";
   var q=new URLSearchParams(location.search);
-  var KEYS=["utm_source","utm_medium","utm_campaign","utm_content","utm_term","fbclid"];
-  var origin={};
-  try{origin=JSON.parse(localStorage.getItem("lumera_origin")||"{}")}catch(e){}
+  var KEYS=["utm_source","utm_medium","utm_campaign","utm_content","utm_term","fbclid","campaign_id","adset_id","ad_id"];
+  var DAY=864e5, LAST_TTL=30*DAY, FIRST_TTL=90*DAY;
+  function load(k){try{return JSON.parse(localStorage.getItem(k)||"null")}catch(e){return null}}
+  function store(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+  /* Último toque: qualquer entrada com parâmetro (inclusive só fbclid) substitui a origem anterior inteira.
+     Primeiro toque: guardado à parte por 90 dias. Retorno sem parâmetro reaproveita o último toque por até 30 dias. */
+  var origin=load("lumera_origin")||{}, first=load("lumera_first"), returning=false;
+  if(origin.ts&&Date.now()-origin.ts>LAST_TTL)origin={};
+  if(first&&first.at&&Date.now()-first.at>FIRST_TTL)first=null;
   if(KEYS.some(function(k){return q.get(k)})){
-    origin={};KEYS.forEach(function(k){if(q.get(k))origin[k]=q.get(k)});
-    origin.landing=location.href.split("#")[0];origin.referrer=document.referrer||"";origin.ts=Date.now();
-    try{localStorage.setItem("lumera_origin",JSON.stringify(origin))}catch(e){}
-  }
+    origin={};KEYS.forEach(function(k){if(q.get(k))origin[k]=q.get(k).slice(0,200)});
+    origin.landing=location.href.split("#")[0].slice(0,300);origin.referrer=(document.referrer||"").slice(0,300);origin.ts=Date.now();
+    store("lumera_origin",origin);
+  }else if(origin.ts){returning=true}
+  if(!first&&origin.ts){first={};KEYS.forEach(function(k){if(origin[k])first[k]=origin[k]});first.landing=origin.landing;first.at=origin.ts;store("lumera_first",first)}
   function cookie(n){var m=document.cookie.match("(?:^|; )"+n+"=([^;]*)");return m?decodeURIComponent(m[1]):""}
   if(origin.fbclid&&!cookie("_fbc")){
     document.cookie="_fbc="+encodeURIComponent("fb.1."+(origin.ts||Date.now())+"."+origin.fbclid)+";path=/;max-age=7776000;SameSite=Lax";
   }
   var temaUrl={clareamento:"CLAREAMENTO",prevencao:"PREVENÇÃO",implante:"IMPLANTE"}[(q.get("t")||"").toLowerCase()];
   function newCode(){var r="";var a="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";for(var i=0;i<4;i++)r+=a[Math.floor(Math.random()*a.length)];return "L"+Date.now().toString(36).toUpperCase().slice(-5)+r}
+  /* Mesmo visitante clicando de novo em 30 min usa o mesmo código: não vira "pessoa nova" */
+  function codeFor(tema){var c=load("lumera_click");if(c&&c.tema===tema&&Date.now()-c.ts<30*60*1000)return c.code;var code=newCode();store("lumera_click",{code:code,tema:tema,ts:Date.now()});return code}
 
   document.querySelectorAll(".js-wa").forEach(function(a){
     a.setAttribute("target","_blank");a.setAttribute("rel","noopener");
     a.addEventListener("click",function(){
       var tema=(a.dataset.t==="AVALIAÇÃO"&&temaUrl)?temaUrl:a.dataset.t;
-      var code=newCode();
-      var msg="Olá! Gostaria de agendar uma avaliação na Luméra. Assunto: "+tema+" (cód. "+code+")";
+      var code=codeFor(tema);
+      /* Evento do Pixel primeiro, antes de abrir o WhatsApp */
+      if(window.fbq)fbq("track","Contact",{content_category:"whatsapp",lead_code:code},{eventID:code});
+      var msg="Olá! Vim pelo site da Luméra e gostaria de agendar uma avaliação. Assunto: "+tema+" (cód. "+code+")";
       a.href="https://wa.me/"+phone+"?text="+encodeURIComponent(msg);
-      var data={code:code,tema:tema,fbc:cookie("_fbc"),fbp:cookie("_fbp"),landing:origin.landing||location.href.split("#")[0],referrer:origin.referrer||document.referrer||""};
+      var data={code:code,tema:tema,fbc:cookie("_fbc"),fbp:cookie("_fbp"),landing:origin.landing||location.href.split("#")[0],referrer:origin.referrer||document.referrer||"",returning:returning,first:first||undefined};
       KEYS.forEach(function(k){if(origin[k])data[k]=origin[k]});
+      data.last=origin.ts?Object.assign({at:origin.ts},origin):undefined;
       try{navigator.sendBeacon("/api/lead",new Blob([JSON.stringify(data)],{type:"application/json"}))}catch(e){}
-      if(window.fbq)fbq("track","Contact",{content_name:tema,content_category:"whatsapp",lead_code:code},{eventID:code});
     });
   });
   document.querySelectorAll(".js-call").forEach(function(a){a.addEventListener("click",function(){if(window.fbq)fbq("track","Contact",{content_category:"telefone"})})});

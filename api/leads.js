@@ -3,7 +3,7 @@
 // POST           cria lead manual (ex.: paciente que chamou direto no WhatsApp pelo anúncio)
 // DELETE ?id=... apaga o lead
 // PATCH ?id=...  atualiza etapa, nome, telefone, valor, notas (etapas agendou/fechou enviam evento ao Meta)
-import { body, send, whoAmI, sameOriginOk, pickFields, getLead, listLeads, newId, saveLead, applyUpdate, deleteLead, storageMode, STAGES } from "./_lib.js";
+import { body, send, whoAmI, sameOriginOk, pickFields, getLead, listLeads, newId, saveLead, applyUpdate, deleteLead, storageMode, confirmConversation, getJSON, STAGES } from "./_lib.js";
 
 export default async function handler(req, res) {
   if (!process.env.CRM_KEY) return send(res, 503, { error: "CRM_KEY não configurada na Vercel" });
@@ -18,11 +18,15 @@ export default async function handler(req, res) {
       return send(res, 200, {
         leads, stages: STAGES, storage: storageMode(), me: { user: me.user, role: me.role },
         capi: !!process.env.META_CAPI_TOKEN,
+        wa: !!(await getJSON("wa:config"))?.token,
       });
     }
     if (req.method === "POST") {
-      const f = pickFields(body(req));
-      const lead = { id: newId(), origin: "manual", createdAt: new Date().toISOString(), stage: "novo", ...f, history: [] };
+      const b = body(req);
+      const f = pickFields(b);
+      const now = new Date().toISOString();
+      // Criado no CRM a partir de uma conversa real (mensagem colada) = conversa confirmada
+      const lead = { id: newId(), origin: "manual", createdAt: now, stage: "novo", kind: "conversa", conversaAt: now, ...f, history: [] };
       const stage = lead.stage; lead.stage = "novo";
       await saveLead(lead);
       if (stage !== "novo") await applyUpdate(lead, { stage }, "crm:" + me.user);
@@ -35,6 +39,8 @@ export default async function handler(req, res) {
       const b = body(req);
       const f = pickFields(b);
       if ("notes" in b && !b.notes) f.notes = "";
+      // Mensagem colada, ou a recepção moveu para uma etapa de atendimento: houve conversa de verdade
+      if (b.confirm || (f.stage && !["novo", "perdido"].includes(f.stage))) await confirmConversation(lead, "crm:" + me.user);
       const saved = await applyUpdate(lead, f, "crm:" + me.user);
       delete saved.ip; delete saved.ua;
       return send(res, 200, { ok: true, lead: saved });

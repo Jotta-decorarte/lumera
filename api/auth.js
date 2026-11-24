@@ -66,7 +66,7 @@ export default async function handler(req, res) {
       const me = await whoAmI(req);
       if (!me || me.role !== "agencia") return send(res, 403, { error: "Só a agência" });
       const users = await getUsers();
-      return send(res, 200, { users: Object.entries(users).map(([k, v]) => ({ user: k, role: v.role, updatedAt: v.updatedAt })), webhookKey: process.env.WEBHOOK_KEY || (await getSecret("webhook", 18)) });
+      return send(res, 200, { users: Object.entries(users).map(([k, v]) => ({ user: k, role: v.role, updatedAt: v.updatedAt })), webhookKey: process.env.WEBHOOK_KEY || (await getSecret("webhook", 18)), exportKey: await getSecret("export", 18) });
     }
 
     send(res, 400, { error: "Ação desconhecida" });
