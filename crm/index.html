@@ -370,10 +370,16 @@ pre{background:var(--abyss);border:1px solid rgba(255,255,255,.08);border-radius
   }
 
   /* Leads antigos (antes de 24/11) não têm "kind": do site e parados em Novo contam como clique */
-  function isClick(l){return l.kind?isClick(l):(l.origin==="site"&&(l.stage==="novo"||!l.stage))}
+  function isClick(l){return l.kind?l.kind==="clique":(l.origin==="site"&&(l.stage==="novo"||!l.stage))}
   function fillSelect(sel,vals){var cur=sel.value;var first=sel.options[0].outerHTML;sel.innerHTML=first+vals.map(function(v){return "<option>"+esc(v)+"</option>"}).join("");sel.value=cur}
 
   function render(){
+    try{renderInner()}catch(e){
+      $("#banners").insertAdjacentHTML("beforeend","<div class='banner'><b>Erro ao montar a tela:</b> "+esc(e&&e.message)+"<br><small>"+esc(String(e&&e.stack||"").split("\n").slice(0,3).join(" | "))+"</small></div>");
+      console.error(e);
+    }
+  }
+  function renderInner(){
     var camps=[...new Set(data.leads.map(function(l){return l.utm_campaign||"(sem campanha)"}))].sort();
     fillSelect($("#fCamp"),camps);
     fillSelect($("#fTema"),[...new Set(data.leads.map(function(l){return l.tema}).filter(Boolean))].sort());
