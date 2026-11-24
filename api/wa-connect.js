@@ -22,6 +22,7 @@ export default async function handler(req, res) {
       connected: !!cfg.token, waba_id: cfg.waba_id || null, phone_number_id: cfg.phone_number_id || null,
       connectedAt: cfg.connectedAt || null, sync: cfg.sync || null,
       appConfigured: !!(process.env.WA_APP_ID && process.env.WA_APP_SECRET && process.env.WA_CONFIG_ID),
+      hasApp: !!process.env.WA_APP_ID, hasSecret: !!process.env.WA_APP_SECRET, hasConfig: !!process.env.WA_CONFIG_ID,
       webhookUrl: "https://" + req.headers.host + "/api/whatsapp",
       verifyToken: process.env.WA_VERIFY_TOKEN || (await getSecret("wa_verify", 18)),
     });
