@@ -1,0 +1,30 @@
+LUMÉRA CRM · EXTENSÃO DO WHATSAPP WEB
+=====================================
+
+O que faz
+- Coloca o botão "＋ Enviar ao CRM" no canto do WhatsApp Web.
+- Só funciona quando a recepção clica. Não lê conversas sozinho e não envia mensagens.
+- Leva para o CRM: nome, telefone, mensagens do paciente, etapa e (no Fechou) o valor.
+- O CRM acha sozinho o assunto e o código do anúncio (#W01, cód. L...).
+
+Instalar (computador da recepção, Google Chrome)
+1. Descompacte esta pasta (botão direito > Extrair tudo).
+2. No Chrome, abra:  chrome://extensions
+3. Ligue "Modo do desenvolvedor" (canto de cima, à direita).
+4. Clique em "Carregar sem compactação" e escolha a pasta extraída.
+5. Clique no ícone de quebra-cabeça do Chrome e fixe "Luméra CRM".
+
+Configurar (uma vez só)
+1. Clique no ícone L dourado.
+2. Endereço do CRM: https://lumeraodonto.vercel.app
+3. Chave do webhook: copie no CRM (login da agência) > aba Integração > card
+   "Webhook de entrada" > botão Copiar (pode colar o link inteiro).
+4. Salvar e testar: deve aparecer "Conectado".
+
+Usar
+1. Abra web.whatsapp.com e a conversa do paciente.
+2. Clique em "＋ Enviar ao CRM" (canto de baixo, à direita).
+3. Confira nome e telefone, escolha a etapa e clique em Enviar.
+4. Se o paciente já estiver no CRM (mesmo telefone), o cartão é atualizado.
+
+Não deixe a pasta da extensão em computador de terceiros: ela guarda a chave do CRM.

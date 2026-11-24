@@ -32,7 +32,8 @@ export default async function handler(req, res) {
         const id = code || newId();
         const stage = f.stage || "novo";
         const now = new Date().toISOString();
-        const created = { id, origin: "webhook", createdAt: now, ...f, stage, kind: raw?.message ? "conversa" : "contato", ...(raw?.message ? { conversaAt: now } : {}), history: [{ at: now, by, stage }] };
+        if (raw?.message && !f.notes) f.notes = "Primeira mensagem: " + String(raw.message).slice(0, 600);
+        const created = { id, origin: f.source === "extensao-whatsapp" ? "whatsapp-web" : "webhook", createdAt: now, ...f, stage, kind: raw?.message ? "conversa" : "contato", ...(raw?.message ? { conversaAt: now } : {}), history: [{ at: now, by, stage }] };
         await saveLead(created);
         results.push({ id, created: true });
       }
